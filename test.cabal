@@ -1,0 +1,69 @@
+-- This file has been generated from package.yaml by hpack version 0.21.2.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: fdcfb789a6bb2ebb564d410a92a5a6f42dfcd1e7b7aa8c549cf9064e325f4cb1
+
+name:           test
+version:        0.1.0.0
+description:    Please see the README on Github at <https://github.com/githubuser/test#readme>
+homepage:       https://github.com/githubuser/test#readme
+bug-reports:    https://github.com/githubuser/test/issues
+author:         Author name here
+maintainer:     example@example.com
+copyright:      2018 Author name here
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+cabal-version:  >= 1.10
+
+extra-source-files:
+    ChangeLog.md
+    README.md
+
+source-repository head
+  type: git
+  location: https://github.com/githubuser/test
+
+library
+  exposed-modules:
+      Lib
+  other-modules:
+      Paths_test
+  hs-source-dirs:
+      src
+  build-depends:
+      base >=4.7 && <5
+    , brick
+    , containers
+    , linear
+    , microlens
+    , microlens-th
+    , random
+    , vty
+  default-language: Haskell2010
+
+executable test-exe
+  main-is: Main.hs
+  other-modules:
+      Paths_test
+  hs-source-dirs:
+      app
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , test
+  default-language: Haskell2010
+
+test-suite test-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Paths_test
+  hs-source-dirs:
+      test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , test
+  default-language: Haskell2010
