@@ -41,6 +41,7 @@ library
     , microlens-th
     , random
     , vty
+    , vector
   default-language: Haskell2010
 
 executable test-exe

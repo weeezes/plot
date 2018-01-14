@@ -12,17 +12,21 @@ import qualified Brick.Widgets.Center as C
 import Lens.Micro ((^.))
 
 import qualified Graphics.Vty as V
+
 import System.Random (newStdGen, randomR, StdGen, getStdRandom)
+
 import Data.Monoid ((<>))
+import Data.Char
+import Data.Bits (xor, (.|.))
+import qualified Data.Vector as V
+
 import Control.Monad (forever, void)
 import Control.Monad.IO.Class (liftIO)
 import Control.Concurrent (threadDelay, forkIO)
 
-import Data.Char
-import Data.Bits (xor, (.|.))
 
-type Row = [Int]
-type Canvas = [Row]
+type Row = V.Vector Int
+type Canvas = V.Vector Row
 
 data Tick = Tick Double Double 
 type Name = ()
@@ -49,14 +53,11 @@ toggleBit c x y =
 setBit c x y =
   c .|. dots !! (y*2+x)
 
-toggleBraille c b =
-  c + (foldl (+) 0 b)
-
 initCanvas :: Int -> Int -> Canvas
 initCanvas w h =
   let
-    row = replicate w base
-    canvas = replicate h row
+    row = V.replicate w base
+    canvas = V.replicate h row
   in
     canvas
 
@@ -76,11 +77,10 @@ setDot (CanvasState canvas w h _ xmin xmax ymin ymax) x y =
     by = floor $ toBounds 0.0 (fromIntegral h) ymin ymax y :: Int
     (x',xDot)  = bx `quotRem` brailleWidth
     (y',yDot)  = by `quotRem` brailleHeight
-    (rh,r:rs)  = splitAt y' canvas -- Get the row to modify
-    (ch,c:cs)  = splitAt x' r -- Get the column to modify
-    c'         = setBit c xDot (brailleHeight - yDot - 1)
-    r'         = ch ++ [c'] ++ cs
-    canvas'    = rh ++ [r'] ++ rs
+    row = canvas V.! y'
+    col = setBit (row V.! x') xDot (brailleHeight - yDot - 1)
+    row' = row V.// [(x',col)]
+    canvas' = canvas V.// [(y',row')]
   in
     if bx < w && by < h then
       canvas'
@@ -148,7 +148,7 @@ canvasWidget cs =
 
       render $ C.center $ withBorderStyle BS.unicodeBold
              $ B.borderWithLabel (str "Plot")
-             $ vBox (rows width' height' (canvas c))
+             $ vBox (rows width' height' (map V.toList $ V.toList $ canvas c))
   where
     rows w h c    = [hBox $ cellsInRow w ( c !! r) | r <- [h-1,h-2..0]]
     cellsInRow w y  = [str $ map chr y]
