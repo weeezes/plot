@@ -119,7 +119,7 @@ loop chan x y = do
   let y' = (100 * (sin $ x/100))
   --let y' = y+1
   writeBChan chan (Tick x y')
-  threadDelay 33000
+  threadDelay 100000
   loop chan (x+30) y'
 
 runUi :: IO()
