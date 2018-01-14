@@ -1,3 +1,5 @@
+{-# LANGUAGE RecordWildCards #-}
+
 module Lib
     ( runUi
     ) where
@@ -9,6 +11,7 @@ import qualified Brick.Widgets.Border as B
 import qualified Brick.Widgets.Border.Style as BS
 import qualified Brick.Widgets.Center as C
 
+import Text.Wrap (WrapSettings(..))
 import Lens.Micro ((^.))
 
 import qualified Graphics.Vty as V
@@ -18,15 +21,13 @@ import System.Random (newStdGen, randomR, StdGen, getStdRandom)
 import Data.Monoid ((<>))
 import Data.Char
 import Data.Bits (xor, (.|.))
-import qualified Data.Vector as V
+import qualified Data.Vector.Unboxed as V
 
 import Control.Monad (forever, void)
 import Control.Monad.IO.Class (liftIO)
 import Control.Concurrent (threadDelay, forkIO)
 
-
-type Row = V.Vector Int
-type Canvas = V.Vector Row
+type Canvas = V.Vector Int
 
 data Tick = Tick Double Double 
 type Name = ()
@@ -56,8 +57,7 @@ setBit c x y =
 initCanvas :: Int -> Int -> Canvas
 initCanvas w h =
   let
-    row = V.replicate w base
-    canvas = V.replicate h row
+    canvas = V.replicate (w*h) base
   in
     canvas
 
@@ -70,34 +70,61 @@ toBounds min max min' max' v =
   in
     abs $ ((abs min') + v) * r 
 
-setDot :: CanvasState -> Double -> Double -> Canvas
-setDot (CanvasState canvas w h _ xmin xmax ymin ymax) x y =
+prettyBounds :: Double -> Double
+prettyBounds v =
   let
-    bx = floor $ toBounds 0.0 (fromIntegral w) xmin xmax x :: Int
-    by = floor $ toBounds 0.0 (fromIntegral h) ymin ymax y :: Int
-    (x',xDot)  = bx `quotRem` brailleWidth
-    (y',yDot)  = by `quotRem` brailleHeight
-    row = canvas V.! y'
-    col = setBit (row V.! x') xDot (brailleHeight - yDot - 1)
-    row' = row V.// [(x',col)]
-    canvas' = canvas V.// [(y',row')]
+    s = signum v
+    v' = abs v
+    t = 10 ^ (floor $ logBase 10.0 v') :: Int
+    n = t * (round $ 0.5 + v' / fromIntegral t)
   in
-    if bx < w && by < h then
+    if v' < 1 then
+      v
+    else if v' > 2 && v' < 10 then
+      s * 10
+    else
+      s * fromIntegral n
+
+setDots :: CanvasState -> Canvas
+setDots (CanvasState canvas w h ps xmin xmax ymin ymax) =
+  let
+    dots (x,y) =
+      let
+        bx = round $ toBounds 0.0 (fromIntegral w) xmin xmax x :: Int
+        by = h - (round $ toBounds 0.0 (fromIntegral h) ymin ymax y) :: Int
+        (x',xDot)  = bx `quotRem` brailleWidth
+        (y',yDot)  = by `quotRem` brailleHeight
+        (x'', xDot') = if x' > (w `div` brailleWidth - 1) then
+                         (w `div` brailleWidth- 1, brailleWidth -1)
+                       else
+                         (x', xDot)
+        (y'', yDot') = if y' > (h `div` brailleHeight - 1) then
+                         (h `div` brailleHeight - 1, brailleHeight -1)
+                       else
+                         (y', yDot)
+        i = (w `div` brailleWidth)*y'' + x''
+      in
+        (i, (xDot', yDot'))
+    ds = map dots ps
+    canvas' = V.accum (\v (x,y) -> setBit v x y) canvas ds
+  in
+    if w > 0 && h > 0 then
       canvas'
     else
       canvas
-    
+ 
 loop chan x y = do
   -- a <- getStdRandom (randomR (0, 1000)) :: IO Int
-  -- b <- getStdRandom (randomR (0, 1000)) :: IO Int
-  let y' = 100 * (sin $ x/30)
+  -- n <- getStdRandom (randomR (-100.0, 100.0)) :: IO Double
+  let y' = (100 * (sin $ x/100))
+  --let y' = y+1
   writeBChan chan (Tick x y')
-  threadDelay 100000
-  loop chan (x+3) y
+  threadDelay 33000
+  loop chan (x+30) y'
 
 runUi :: IO()
 runUi = do
-  chan <- newBChan 10
+  chan <- newBChan 100
   let c = initCanvasState 50 20 :: CanvasState
   let w = width c
   let h = height c
@@ -105,14 +132,15 @@ runUi = do
   void $ customMain (V.mkVty V.defaultConfig) (Just chan) app c
 
 step :: Double -> Double -> CanvasState -> CanvasState
-step a b c = c { points = points c ++ [(a,b)] }
+step x y c@CanvasState{..} = c { points = points ++ [(x,y)], xMin = prettyBounds $ min x xMin, xMax = prettyBounds $ max x xMax, yMin = prettyBounds $ min y yMin, yMax = prettyBounds $ max y yMax }
 
 resize :: Int -> Int -> CanvasState -> CanvasState
 resize w h c =
   c { canvas = initCanvas w h, width = w*brailleWidth, height = h*brailleHeight }
 
 initCanvasState :: Int -> Int -> CanvasState
-initCanvasState w h = CanvasState { canvas = initCanvas w h, width = w, height = h, points = [], xMin = 0.0, xMax = 100.0, yMin = -200.0, yMax = 200.0 }
+--initCanvasState w h = CanvasState { canvas = initCanvas w h, width = w*brailleWidth, height = h*brailleHeight, points = [(100.0,0.0), (50.0,200.0), (150.0,-200.0)], xMin = 0.0, xMax = 10.0, yMin = 0.0, yMax = 10.0 }
+initCanvasState w h = CanvasState { canvas = initCanvas w h, width = w*brailleWidth, height = h*brailleHeight, points = [], xMin = 0.0, xMax = 10.0, yMin = 0.0, yMax = 10.0 }
 
 app :: App CanvasState Tick Name
 app = App { appDraw = drawUI
@@ -126,32 +154,29 @@ handleEvent :: CanvasState -> BrickEvent Name Tick -> EventM Name (Next CanvasSt
 handleEvent c (AppEvent (Tick a b)) = continue $ step a b c
 handleEvent c (VtyEvent (V.EvKey (V.KChar 'q') [])) = halt c
 handleEvent c (VtyEvent (V.EvKey V.KEsc []))        = halt c
-handleEvent c (VtyEvent (V.EvResize w h))           = continue $ resize w h c
+handleEvent c (VtyEvent (V.EvResize w h))           = continue $ resize (w-2) (h-2) c
 handleEvent c _                                     = continue c
 
 drawUI :: CanvasState -> [Widget Name]
 drawUI c = [vBox [canvasWidget c, padLeftRight 1 (str $ "Width: " ++ (show $ width c)) <+> padLeftRight 1 (str $ "Height: " ++ (show $ height c)) <+> padLeftRight 1 (str $ "X Min: " ++ (show $ xMin c)) <+> padLeftRight 1 (str $ "X Max: " ++ (show $ xMax c)) <+> padLeftRight 1 (str $ "Y Min: " ++ (show $ yMin c)) <+> padLeftRight 1 (str $ "Y Max: " ++ (show $ yMax c)) ]]
 
-stupidRender width' height' cs = foldl (\c (x,y) -> c { canvas = setDot c x y }) (cs { canvas = initCanvas width' height', width = width'*brailleWidth, height = height'*brailleHeight }) (points cs)
+renderCanvas cs = setDots cs
 
+wrapSettings = WrapSettings { preserveIndentation = False, breakLongWords = True }
 canvasWidget :: CanvasState -> Widget n
 canvasWidget cs =
   Widget Greedy Greedy $ do
       ctx <- getContext
 
-      let width' = ctx^.availWidthL
-      let height' = ctx^.availHeightL
-      let c = stupidRender width' height' cs
+      let width' = ctx^.availWidthL - 2
+      let height' = ctx^.availHeightL - 2
+      let c = renderCanvas $ cs { canvas = initCanvas width' height', width = width'*brailleWidth, height = height'*brailleHeight }
       
-      let width'' = (width cs) `quot` brailleWidth
-      let height'' = (height cs) `quot` brailleHeight
-
       render $ C.center $ withBorderStyle BS.unicodeBold
              $ B.borderWithLabel (str "Plot")
-             $ vBox (rows width' height' (map V.toList $ V.toList $ canvas c))
+             $ vBox (rows width' height' (V.toList $ c))
   where
-    rows w h c    = [hBox $ cellsInRow w ( c !! r) | r <- [h-1,h-2..0]]
-    cellsInRow w y  = [str $ map chr y]
+    rows w h c    = [strWrapWith wrapSettings $ map chr c]
 
 theMap :: AttrMap
 theMap = attrMap V.defAttr []
