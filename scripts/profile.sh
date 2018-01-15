@@ -1,4 +1,4 @@
 #!/bin/bash
 
 stack build --profile --executable-profiling
-stack exec -- test-exe +RTS -p
+stack exec -- test-exe <(set -e; for i in {0..4000}; do echo $(($RANDOM%60)); done) +RTS -p 
