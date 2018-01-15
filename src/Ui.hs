@@ -27,7 +27,6 @@ import Control.Monad.IO.Class (liftIO)
 import Control.Concurrent (threadDelay, forkIO)
 
 import qualified System.IO as IO
-import qualified System.Environment as Env
 import qualified System.Directory as D
 
 import Types
