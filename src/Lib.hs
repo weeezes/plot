@@ -76,14 +76,14 @@ prettyBounds v =
     s = signum v
     v' = abs v
     t = 10 ^ (floor $ logBase 10.0 v') :: Int
-    n = t * (round $ 0.5 + v' / fromIntegral t)
+    n = t * (ceiling $ v' / fromIntegral t)
   in
     if v' < 1 then
       v
     else if v' > 2 && v' < 10 then
       s * 10
     else
-      s * fromIntegral n
+      1.2 * s * fromIntegral (n)
 
 setDots :: CanvasState -> Canvas
 setDots (CanvasState canvas w h ps xmin xmax ymin ymax) =
@@ -132,7 +132,7 @@ runUi = do
   void $ customMain (V.mkVty V.defaultConfig) (Just chan) app c
 
 step :: Double -> Double -> CanvasState -> CanvasState
-step x y c@CanvasState{..} = c { points = points ++ [(x,y)], xMin = prettyBounds $ min x xMin, xMax = prettyBounds $ max x xMax, yMin = prettyBounds $ min y yMin, yMax = prettyBounds $ max y yMax }
+step x y c@CanvasState{..} = c { points = points ++ [(x,y)], xMin = min (prettyBounds x) xMin, xMax = max (prettyBounds x) xMax, yMin = min (prettyBounds y) yMin, yMax = max (prettyBounds y) yMax }
 
 resize :: Int -> Int -> CanvasState -> CanvasState
 resize w h c =
