@@ -38,11 +38,15 @@ import Braille
 
 type Name = ()
 
+parseSecondValue :: A.Parser Double
+parseSecondValue = do
+  A.skipSpace
+  A.double
+
 parsePoint :: A.Parser Point
 parsePoint = do
   x <- A.double
-  A.skipSpace
-  y <- A.double
+  y <- A.choice [A.skipSpace >>= \_ -> A.endOfLine >>= \_ -> return 0.0, parseSecondValue]
   return $ Point x y
 
 loop chan h = do
@@ -57,9 +61,22 @@ loop chan h = do
   else
     return ()
 
+loopSingles chan h x = do
+  o <- IO.hIsOpen h
+  eof <- IO.hIsEOF h
+  if o && not eof then do
+    l <- BS.hGetLine h
+    case A.parseOnly parseSecondValue l of
+      Right v -> writeBChan chan $ Point x v
+      Left _ -> return ()
+    loopSingles chan h (x+1)
+  else
+    return ()
+
 settingsParser :: Options.Parser Settings
 settingsParser = Settings
   <$> Options.argument Options.str (Options.metavar "FD")
+  <*> Options.switch (Options.long "singles" <> Options.short 's')
 
 settingsParserInfo :: Options.ParserInfo Settings
 settingsParserInfo = Options.info (settingsParser Options.<**> Options.helper) 
@@ -76,8 +93,12 @@ runUi = do
   exists <- D.doesFileExist f
   if exists then do
     h <- IO.openFile f IO.ReadMode
-    forkIO $ loop chan h
-    void $ customMain (V.mkVty V.defaultConfig ) (Just chan) app c
+    if singles settings then do
+      forkIO $ loopSingles chan h 0
+      void $ customMain (V.mkVty V.defaultConfig ) (Just chan) app c
+    else do
+      forkIO $ loop chan h
+      void $ customMain (V.mkVty V.defaultConfig ) (Just chan) app c
 
     IO.hClose h
   else
@@ -91,7 +112,7 @@ resize w h c =
   c { canvas = initCanvas w h, width = w*brailleWidth, height = h*brailleHeight }
 
 initCanvasState :: Int -> Int -> CanvasState
-initCanvasState w h = CanvasState { canvas = initCanvas w h, width = w*brailleWidth, height = h*brailleHeight, points = [], xMin = 0.0, xMax = 10.0, yMin = 0.0, yMax = 10.0 }
+initCanvasState w h = CanvasState { canvas = initCanvas w h, width = w*brailleWidth, height = h*brailleHeight, points = [], xMin = 0.0, xMax = 0.0, yMin = 0.0, yMax = 0.0 }
 
 app :: App CanvasState Point Name
 app = App { appDraw = drawUI
