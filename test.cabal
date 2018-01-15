@@ -43,6 +43,7 @@ library
     , vty
     , vector
     , word-wrap
+    , unix
   default-language: Haskell2010
 
 executable test-exe

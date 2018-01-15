@@ -27,6 +27,9 @@ import Control.Monad (forever, void)
 import Control.Monad.IO.Class (liftIO)
 import Control.Concurrent (threadDelay, forkIO)
 
+import qualified System.IO as IO
+import qualified System.Environment as Env
+
 type Canvas = V.Vector Int
 
 data Tick = Tick Double Double 
@@ -113,14 +116,25 @@ setDots (CanvasState canvas w h ps xmin xmax ymin ymax) =
     else
       canvas
  
-loop chan x y = do
-  -- a <- getStdRandom (randomR (0, 1000)) :: IO Int
-  -- n <- getStdRandom (randomR (-100.0, 100.0)) :: IO Double
-  let y' = (100 * (sin $ x/100))
-  --let y' = y+1
-  writeBChan chan (Tick x y')
-  threadDelay 100000
-  loop chan (x+30) y'
+-- loop chan f x y = do
+--   -- a <- getStdRandom (randomR (0, 1000)) :: IO Int
+--   -- n <- getStdRandom (randomR (-100.0, 100.0)) :: IO Double
+--   let y' = (100 * (sin $ x/100))
+--   --let y' = y+1
+--   writeBChan chan (Tick x y')
+--   threadDelay 100000
+--   loop chan f (x+30) y'
+-- 
+
+loop chan h x y = do
+  o <- IO.hIsOpen h
+  if o then do
+    l <- IO.hGetLine h
+
+    writeBChan chan (Tick x (read l :: Double))
+    loop chan h (x+1) y
+  else
+    return ()
 
 runUi :: IO()
 runUi = do
@@ -128,8 +142,12 @@ runUi = do
   let c = initCanvasState 50 20 :: CanvasState
   let w = width c
   let h = height c
-  forkIO $ loop chan 0.0 0.0
-  void $ customMain (V.mkVty V.defaultConfig) (Just chan) app c
+  f <- Env.getArgs
+  h <- IO.openFile (f !! 0) IO.ReadMode
+  forkIO $ loop chan h 0.0 0.0
+  void $ customMain (V.mkVty V.defaultConfig ) (Just chan) app c
+
+  IO.hClose h
 
 step :: Double -> Double -> CanvasState -> CanvasState
 step x y c@CanvasState{..} = c { points = points ++ [(x,y)], xMin = min (prettyBounds x) xMin, xMax = max (prettyBounds x) xMax, yMin = min (prettyBounds y) yMin, yMax = max (prettyBounds y) yMax }
