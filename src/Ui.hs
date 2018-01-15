@@ -32,6 +32,8 @@ import qualified System.Directory as D
 import Types
 import Braille
 
+type Name = ()
+
 loop chan h x y = do
   o <- IO.hIsOpen h
   eof <- IO.hIsEOF h
