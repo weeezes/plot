@@ -1,6 +1,6 @@
 module Types
   ( Canvas(..)
-  , Tick(..)
+  , Point(..)
   , CanvasState(..)
   , Settings(..)
   ) where
@@ -9,7 +9,7 @@ import qualified Data.Vector.Unboxed as V
 
 type Canvas = V.Vector Int
 
-data Tick = Tick Double Double 
+data Point = Point Double Double 
 
 data CanvasState = CanvasState
   { canvas :: Canvas

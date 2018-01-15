@@ -40,7 +40,7 @@ loop chan h x y = do
   if o && not eof then do
     l <- IO.hGetLine h
 
-    writeBChan chan (Tick x (read l :: Double))
+    writeBChan chan (Point x (read l :: Double))
     loop chan h (x+1) y
   else
     return ()
@@ -81,7 +81,7 @@ resize w h c =
 initCanvasState :: Int -> Int -> CanvasState
 initCanvasState w h = CanvasState { canvas = initCanvas w h, width = w*brailleWidth, height = h*brailleHeight, points = [], xMin = 0.0, xMax = 10.0, yMin = 0.0, yMax = 10.0 }
 
-app :: App CanvasState Tick Name
+app :: App CanvasState Point Name
 app = App { appDraw = drawUI
           , appChooseCursor = neverShowCursor
           , appHandleEvent = handleEvent
@@ -89,8 +89,8 @@ app = App { appDraw = drawUI
           , appAttrMap = const theMap
           }
 
-handleEvent :: CanvasState -> BrickEvent Name Tick -> EventM Name (Next CanvasState )
-handleEvent c (AppEvent (Tick a b)) = continue $ step a b c
+handleEvent :: CanvasState -> BrickEvent Name Point -> EventM Name (Next CanvasState )
+handleEvent c (AppEvent (Point x y)) = continue $ step x y c
 handleEvent c (VtyEvent (V.EvKey (V.KChar 'q') [])) = halt c
 handleEvent c (VtyEvent (V.EvKey V.KEsc []))        = halt c
 handleEvent c (VtyEvent (V.EvResize w h))           = continue $ resize (w-2) (h-2) c
