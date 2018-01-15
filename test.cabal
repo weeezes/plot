@@ -29,6 +29,7 @@ library
   exposed-modules:
       Lib
     , Types
+    , Ui
   other-modules:
       Paths_test
   hs-source-dirs:
