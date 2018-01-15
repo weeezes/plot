@@ -48,6 +48,8 @@ library
     , unix
     , optparse-applicative
     , directory
+    , attoparsec
+    , bytestring
   default-language: Haskell2010
 
 executable test-exe

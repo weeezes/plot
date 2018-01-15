@@ -1,4 +1,5 @@
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Ui 
   ( runUi
@@ -29,19 +30,30 @@ import Control.Concurrent (threadDelay, forkIO)
 import qualified System.IO as IO
 import qualified System.Directory as D
 
+import qualified Data.ByteString.Char8 as BS
+import qualified Data.Attoparsec.ByteString.Char8 as A
+
 import Types
 import Braille
 
 type Name = ()
 
-loop chan h x y = do
+parsePoint :: A.Parser Point
+parsePoint = do
+  x <- A.double
+  A.skipSpace
+  y <- A.double
+  return $ Point x y
+
+loop chan h = do
   o <- IO.hIsOpen h
   eof <- IO.hIsEOF h
   if o && not eof then do
-    l <- IO.hGetLine h
-
-    writeBChan chan (Point x (read l :: Double))
-    loop chan h (x+1) y
+    l <- BS.hGetLine h
+    case A.parseOnly parsePoint l of
+      Right v -> writeBChan chan v
+      Left _ -> return ()
+    loop chan h
   else
     return ()
 
@@ -64,7 +76,7 @@ runUi = do
   exists <- D.doesFileExist f
   if exists then do
     h <- IO.openFile f IO.ReadMode
-    forkIO $ loop chan h 0.0 0.0
+    forkIO $ loop chan h
     void $ customMain (V.mkVty V.defaultConfig ) (Just chan) app c
 
     IO.hClose h
