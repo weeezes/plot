@@ -16,6 +16,7 @@ import Lens.Micro ((^.))
 
 import qualified Graphics.Vty as V
 
+import qualified Options.Applicative as Options
 import System.Random (newStdGen, randomR, StdGen, getStdRandom)
 
 import Data.Monoid ((<>))
@@ -29,6 +30,8 @@ import Control.Concurrent (threadDelay, forkIO)
 
 import qualified System.IO as IO
 import qualified System.Environment as Env
+import qualified System.Directory as D
+
 
 type Canvas = V.Vector Int
 
@@ -44,6 +47,10 @@ data CanvasState = CanvasState
   , xMax :: Double
   , yMin :: Double
   , yMax :: Double
+  }
+
+data Settings = Settings
+  { inputStream :: String
   }
 
 base = 0x2800
@@ -128,7 +135,8 @@ setDots (CanvasState canvas w h ps xmin xmax ymin ymax) =
 
 loop chan h x y = do
   o <- IO.hIsOpen h
-  if o then do
+  eof <- IO.hIsEOF h
+  if o && not eof then do
     l <- IO.hGetLine h
 
     writeBChan chan (Tick x (read l :: Double))
@@ -136,18 +144,30 @@ loop chan h x y = do
   else
     return ()
 
+settingsParser :: Options.Parser Settings
+settingsParser = Settings
+  <$> Options.argument Options.str (Options.metavar "FD")
+
+settingsParserInfo :: Options.ParserInfo Settings
+settingsParserInfo = Options.info (settingsParser Options.<**> Options.helper) 
+                                  (Options.progDesc "Plot stuff on the terminal.")
 runUi :: IO()
 runUi = do
   chan <- newBChan 100
   let c = initCanvasState 50 20 :: CanvasState
   let w = width c
   let h = height c
-  f <- Env.getArgs
-  h <- IO.openFile (f !! 0) IO.ReadMode
-  forkIO $ loop chan h 0.0 0.0
-  void $ customMain (V.mkVty V.defaultConfig ) (Just chan) app c
+  settings <- Options.execParser settingsParserInfo
+  let f = inputStream settings
+  exists <- D.doesFileExist f
+  if exists then do
+    h <- IO.openFile f IO.ReadMode
+    forkIO $ loop chan h 0.0 0.0
+    void $ customMain (V.mkVty V.defaultConfig ) (Just chan) app c
 
-  IO.hClose h
+    IO.hClose h
+  else
+    putStrLn "Given file descriptor doesn't exist"
 
 step :: Double -> Double -> CanvasState -> CanvasState
 step x y c@CanvasState{..} = c { points = points ++ [(x,y)], xMin = min (prettyBounds x) xMin, xMax = max (prettyBounds x) xMax, yMin = min (prettyBounds y) yMin, yMax = max (prettyBounds y) yMax }
