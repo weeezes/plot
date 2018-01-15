@@ -30,7 +30,7 @@ import qualified System.IO as IO
 import qualified System.Directory as D
 
 import Types
-import Lib
+import Braille
 
 loop chan h x y = do
   o <- IO.hIsOpen h

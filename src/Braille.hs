@@ -1,6 +1,6 @@
 {-# LANGUAGE RecordWildCards #-}
 
-module Lib where
+module Braille where
 
 import Data.Char
 import Data.Bits (xor, (.|.))

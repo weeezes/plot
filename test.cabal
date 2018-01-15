@@ -27,7 +27,7 @@ source-repository head
 
 library
   exposed-modules:
-      Lib
+      Braille
     , Types
     , Ui
   other-modules:
