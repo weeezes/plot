@@ -28,6 +28,7 @@ source-repository head
 library
   exposed-modules:
       Lib
+    , Types
   other-modules:
       Paths_test
   hs-source-dirs:

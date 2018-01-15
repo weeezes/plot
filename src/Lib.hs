@@ -32,26 +32,7 @@ import qualified System.IO as IO
 import qualified System.Environment as Env
 import qualified System.Directory as D
 
-
-type Canvas = V.Vector Int
-
-data Tick = Tick Double Double 
-type Name = ()
-
-data CanvasState = CanvasState
-  { canvas :: Canvas
-  , width :: Int
-  , height :: Int
-  , points :: [(Double,Double)]
-  , xMin :: Double
-  , xMax :: Double
-  , yMin :: Double
-  , yMax :: Double
-  }
-
-data Settings = Settings
-  { inputStream :: String
-  }
+import Types
 
 base = 0x2800
 dots = [0x1,0x8,0x2,0x10,0x4,0x20,0x40,0x80]
