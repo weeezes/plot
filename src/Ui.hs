@@ -23,7 +23,7 @@ import Data.Monoid ((<>))
 import Data.Char
 import qualified Data.Vector.Unboxed as V
 
-import Control.Monad (forever, void)
+import Control.Monad (forever, void, foldM)
 import Control.Monad.IO.Class (liftIO)
 import Control.Concurrent (threadDelay, forkIO)
 
@@ -51,25 +51,28 @@ parsePoint = do
 
 loop chan h = do
   o <- IO.hIsOpen h
-  eof <- IO.hIsEOF h
-  if o && not eof then do
-    l <- BS.hGetLine h
-    case A.parseOnly parsePoint l of
-      Right v -> writeBChan chan v
-      Left _ -> return ()
+  if o then do
+    content <- fmap BS.lines $ BS.hGetContents h
+
+    let process l = case A.parseOnly parsePoint l of
+                    Right v -> writeBChan chan v
+                    Left _ -> return ()
+    mapM_ process content
     loop chan h
   else
     return ()
 
 loopSingles chan h x = do
   o <- IO.hIsOpen h
-  eof <- IO.hIsEOF h
-  if o && not eof then do
-    l <- BS.hGetLine h
-    case A.parseOnly parseSecondValue l of
-      Right v -> writeBChan chan $ Point x v
-      Left _ -> return ()
-    loopSingles chan h (x+1)
+  if o then do
+    content <- fmap BS.lines $ BS.hGetContents h
+    let process x l = case A.parseOnly parseSecondValue l of
+                    Right v -> do
+                      writeBChan chan $ Point x v
+                      return $ x+1
+                    Left _ -> return x
+    x' <- foldM (process) 0.0 content :: IO Double
+    loopSingles chan h x'
   else
     return ()
 
@@ -130,9 +133,18 @@ handleEvent c (VtyEvent (V.EvResize w h))           = continue $ resize (w-2) (h
 handleEvent c _                                     = continue c
 
 drawUI :: CanvasState -> [Widget Name]
-drawUI c = [vBox [canvasWidget c, padLeftRight 1 (str $ "Width: " ++ (show $ width c)) <+> padLeftRight 1 (str $ "Height: " ++ (show $ height c)) <+> padLeftRight 1 (str $ "X Min: " ++ (show $ xMin c)) <+> padLeftRight 1 (str $ "X Max: " ++ (show $ xMax c)) <+> padLeftRight 1 (str $ "Y Min: " ++ (show $ yMin c)) <+> padLeftRight 1 (str $ "Y Max: " ++ (show $ yMax c)) ]]
+drawUI c =
+  [
+    hBox
+      [
+        vBox []
+      , vBox [canvasWidget c, stats c ]
+      ]
+  ]
 
 renderCanvas cs = setDots cs
+
+stats c = padLeftRight 1 (str $ "Width: " ++ (show $ width c)) <+> padLeftRight 1 (str $ "Height: " ++ (show $ height c)) <+> padLeftRight 1 (str $ "X Min: " ++ (show $ xMin c)) <+> padLeftRight 1 (str $ "X Max: " ++ (show $ xMax c)) <+> padLeftRight 1 (str $ "Y Min: " ++ (show $ yMin c)) <+> padLeftRight 1 (str $ "Y Max: " ++ (show $ yMax c))
 
 wrapSettings = WrapSettings { preserveIndentation = False, breakLongWords = True }
 canvasWidget :: CanvasState -> Widget n
