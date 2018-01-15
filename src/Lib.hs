@@ -123,16 +123,6 @@ setDots (CanvasState canvas w h ps xmin xmax ymin ymax) =
     else
       canvas
  
--- loop chan f x y = do
---   -- a <- getStdRandom (randomR (0, 1000)) :: IO Int
---   -- n <- getStdRandom (randomR (-100.0, 100.0)) :: IO Double
---   let y' = (100 * (sin $ x/100))
---   --let y' = y+1
---   writeBChan chan (Tick x y')
---   threadDelay 100000
---   loop chan f (x+30) y'
--- 
-
 loop chan h x y = do
   o <- IO.hIsOpen h
   eof <- IO.hIsEOF h
@@ -151,6 +141,7 @@ settingsParser = Settings
 settingsParserInfo :: Options.ParserInfo Settings
 settingsParserInfo = Options.info (settingsParser Options.<**> Options.helper) 
                                   (Options.progDesc "Plot stuff on the terminal.")
+
 runUi :: IO()
 runUi = do
   chan <- newBChan 100
@@ -177,7 +168,6 @@ resize w h c =
   c { canvas = initCanvas w h, width = w*brailleWidth, height = h*brailleHeight }
 
 initCanvasState :: Int -> Int -> CanvasState
---initCanvasState w h = CanvasState { canvas = initCanvas w h, width = w*brailleWidth, height = h*brailleHeight, points = [(100.0,0.0), (50.0,200.0), (150.0,-200.0)], xMin = 0.0, xMax = 10.0, yMin = 0.0, yMax = 10.0 }
 initCanvasState w h = CanvasState { canvas = initCanvas w h, width = w*brailleWidth, height = h*brailleHeight, points = [], xMin = 0.0, xMax = 10.0, yMin = 0.0, yMax = 10.0 }
 
 app :: App CanvasState Tick Name
