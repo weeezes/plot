@@ -46,6 +46,7 @@ import Types
 import Braille
 
 type Name = ()
+data ParsedPoint = ParsedPoint Double Double | ParsedSingle Double
 
 parseSecondValue :: A.Parser Double
 parseSecondValue = do
@@ -58,27 +59,35 @@ parseSecondValue = do
 parseSingles :: A.Parser [Double]
 parseSingles = A.many' parseSecondValue
 
-parsePoint :: A.Parser Point
+parsePoint :: A.Parser ParsedPoint
 parsePoint = do
+  A.skipSpace
   x <- A.double
-  A.skipSpace
-  y <- A.double
-  A.skipSpace
-  A.option () A.endOfLine
-  return $ Point x y
+  A.takeWhile (\c -> not (A.isDigit c || c == '.' || c == '\n' || c == '\r'))
+  possiblyDigit <- A.peekChar
+  case possiblyDigit of
+    Just c -> 
+      if A.isDigit c then do
+        y <- A.double
+        return $ ParsedPoint x y
+      else
+        return $ ParsedSingle x
+    Nothing -> return $ ParsedSingle x
 
-loop chan h = do
-  PP.evalStateT (PP.foldAllM (\_ p -> writeBChan chan p >>= \_ -> return ()) (return ()) (\_ -> return ())) $ PA.parsed parsePoint (PB.fromHandle h)
-  return ()
+foldPoints chan acc (ParsedPoint x y) = do
+  writeBChan chan  $ Point x y
+  return $ acc + 1
+foldPoints chan acc (ParsedSingle y) = do
+  writeBChan chan $ Point (acc+1) y
+  return $ acc + 1
 
-loopSingles chan h x = do
-  PP.evalStateT (PP.foldAllM (\x v -> writeBChan chan (Point x v) >>= \_ -> return $ x+1) (return 0 :: IO Double) pure) $ PA.parsed parseSecondValue (PB.fromHandle h)
+loop chan h x = do
+  PP.evalStateT (PP.foldAllM (foldPoints chan) (return $ 0 :: IO Double) pure) $ PA.parsed parsePoint (PB.fromHandle h)
   return ()
 
 settingsParser :: Options.Parser Settings
 settingsParser = Settings
   <$> Options.argument Options.str (Options.metavar "FD")
-  <*> Options.switch (Options.long "singles" <> Options.short 's')
 
 settingsParserInfo :: Options.ParserInfo Settings
 settingsParserInfo = Options.info (settingsParser Options.<**> Options.helper) 
@@ -105,27 +114,15 @@ runUi = do
   if exists then do
     fd <- PIO.openFd f PIO.ReadOnly Nothing PIO.defaultFileFlags
     h <- PIO.fdToHandle fd
-    if singles settings then do
-      tid <- forkIO $ loopSingles chan h 0
-      vty <- V.mkVty V.defaultConfig
+    tid <- forkIO $ loop chan h 0
+    vty <- V.mkVty V.defaultConfig
 
-      Signals.installHandler Signals.sigTERM (Signals.Catch $ handleShutdown vty tid fd) Nothing
+    Signals.installHandler Signals.sigTERM (Signals.Catch $ handleShutdown vty tid fd) Nothing
 
-      void $ customMain (pure vty) (Just chan) app c
-      putStrLn "Bye!"
-      killThread tid
-      IO.hClose h
-
-    else do
-      tid <- forkIO $ loop chan h
-      vty <- V.mkVty V.defaultConfig
-
-      Signals.installHandler Signals.sigTERM (Signals.Catch $ handleShutdown vty tid fd) Nothing
-
-      void $ customMain (pure vty) (Just chan) app c
-      putStrLn "Bye!"
-      killThread tid
-      IO.hClose h
+    void $ customMain (pure vty) (Just chan) app c
+    putStrLn "Bye!"
+    killThread tid
+    IO.hClose h
 
   else
     putStrLn "Given file descriptor doesn't exist"

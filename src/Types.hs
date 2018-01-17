@@ -24,6 +24,5 @@ data CanvasState = CanvasState
 
 data Settings = Settings
   { inputStream :: String
-  , singles :: Bool
   }
 
