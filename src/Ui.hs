@@ -25,13 +25,22 @@ import qualified Data.Vector.Unboxed as V
 
 import Control.Monad (forever, void, foldM)
 import Control.Monad.IO.Class (liftIO)
-import Control.Concurrent (threadDelay, forkIO)
+import Control.Concurrent (threadDelay, forkIO, ThreadId, killThread)
 
 import qualified System.IO as IO
 import qualified System.Directory as D
+import qualified System.Posix.Signals as Signals
+import qualified System.Posix.Process as Process
+import qualified System.Posix.IO as PIO
+import System.Posix.Types (Fd)
+import qualified System.Exit as Exit
 
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.Attoparsec.ByteString.Char8 as A
+
+import qualified Pipes.ByteString as PB
+import qualified Pipes.Parse as PP
+import qualified Pipes.Attoparsec as PA
 
 import Types
 import Braille
@@ -41,40 +50,30 @@ type Name = ()
 parseSecondValue :: A.Parser Double
 parseSecondValue = do
   A.skipSpace
-  A.double
+  d <- A.double
+  A.skipSpace
+  A.option () A.endOfLine
+  return $ d
+
+parseSingles :: A.Parser [Double]
+parseSingles = A.many' parseSecondValue
 
 parsePoint :: A.Parser Point
 parsePoint = do
   x <- A.double
-  y <- A.choice [A.skipSpace >>= \_ -> A.endOfLine >>= \_ -> return 0.0, parseSecondValue]
+  A.skipSpace
+  y <- A.double
+  A.skipSpace
+  A.option () A.endOfLine
   return $ Point x y
 
 loop chan h = do
-  o <- IO.hIsOpen h
-  if o then do
-    content <- fmap BS.lines $ BS.hGetContents h
-
-    let process l = case A.parseOnly parsePoint l of
-                    Right v -> writeBChan chan v
-                    Left _ -> return ()
-    mapM_ process content
-    loop chan h
-  else
-    return ()
+  PP.evalStateT (PP.foldAllM (\_ p -> writeBChan chan p >>= \_ -> return ()) (return ()) (\_ -> return ())) $ PA.parsed parsePoint (PB.fromHandle h)
+  return ()
 
 loopSingles chan h x = do
-  o <- IO.hIsOpen h
-  if o then do
-    content <- fmap BS.lines $ BS.hGetContents h
-    let process x l = case A.parseOnly parseSecondValue l of
-                    Right v -> do
-                      writeBChan chan $ Point x v
-                      return $ x+1
-                    Left _ -> return x
-    x' <- foldM (process) 0.0 content :: IO Double
-    loopSingles chan h x'
-  else
-    return ()
+  PP.evalStateT (PP.foldAllM (\x v -> writeBChan chan (Point x v) >>= \_ -> return $ x+1) (return 0 :: IO Double) pure) $ PA.parsed parseSecondValue (PB.fromHandle h)
+  return ()
 
 settingsParser :: Options.Parser Settings
 settingsParser = Settings
@@ -84,6 +83,15 @@ settingsParser = Settings
 settingsParserInfo :: Options.ParserInfo Settings
 settingsParserInfo = Options.info (settingsParser Options.<**> Options.helper) 
                                   (Options.progDesc "Plot stuff on the terminal.")
+
+handleShutdown :: V.Vty -> ThreadId -> Fd -> IO ()
+handleShutdown vty tid fd = do
+  putStrLn "Received SIGTERM, shutting down."
+  -- TODO exit with proper error code if any of these fail
+  killThread tid
+  PIO.closeFd fd
+  V.shutdown vty
+  Process.exitImmediately Exit.ExitSuccess
 
 runUi :: IO()
 runUi = do
@@ -95,15 +103,30 @@ runUi = do
   let f = inputStream settings
   exists <- D.doesFileExist f
   if exists then do
-    h <- IO.openFile f IO.ReadMode
+    fd <- PIO.openFd f PIO.ReadOnly Nothing PIO.defaultFileFlags
+    h <- PIO.fdToHandle fd
     if singles settings then do
-      forkIO $ loopSingles chan h 0
-      void $ customMain (V.mkVty V.defaultConfig ) (Just chan) app c
-    else do
-      forkIO $ loop chan h
-      void $ customMain (V.mkVty V.defaultConfig ) (Just chan) app c
+      tid <- forkIO $ loopSingles chan h 0
+      vty <- V.mkVty V.defaultConfig
 
-    IO.hClose h
+      Signals.installHandler Signals.sigTERM (Signals.Catch $ handleShutdown vty tid fd) Nothing
+
+      void $ customMain (pure vty) (Just chan) app c
+      putStrLn "Bye!"
+      killThread tid
+      IO.hClose h
+
+    else do
+      tid <- forkIO $ loop chan h
+      vty <- V.mkVty V.defaultConfig
+
+      Signals.installHandler Signals.sigTERM (Signals.Catch $ handleShutdown vty tid fd) Nothing
+
+      void $ customMain (pure vty) (Just chan) app c
+      putStrLn "Bye!"
+      killThread tid
+      IO.hClose h
+
   else
     putStrLn "Given file descriptor doesn't exist"
 
