@@ -58,29 +58,29 @@ prettyBounds v =
       1.1 * s * fromIntegral (m + m')
 
 setDots :: CanvasState -> Canvas
-setDots (CanvasState canvas w h ps xmin xmax ymin ymax) =
+setDots cs@CanvasState{..} = --(CanvasState canvas w h ps xmin xmax ymin ymax) =
   let
     dots (x,y) =
       let
-        bx = round $ toBounds 0.0 (fromIntegral w) xmin xmax x :: Int
-        by = h - (round $ toBounds 0.0 (fromIntegral h) ymin ymax y) :: Int
+        bx = round $ toBounds 0.0 (fromIntegral width) xMin xMax x :: Int
+        by = height - (round $ toBounds 0.0 (fromIntegral height) yMin yMax y) :: Int
         (x',xDot)  = bx `quotRem` brailleWidth
         (y',yDot)  = by `quotRem` brailleHeight
-        (x'', xDot') = if x' > (w `div` brailleWidth - 1) then
-                         (w `div` brailleWidth- 1, brailleWidth -1)
+        (x'', xDot') = if x' > (width `div` brailleWidth - 1) then
+                         (width `div` brailleWidth- 1, brailleWidth -1)
                        else
                          (x', xDot)
-        (y'', yDot') = if y' > (h `div` brailleHeight - 1) then
-                         (h `div` brailleHeight - 1, brailleHeight -1)
+        (y'', yDot') = if y' > (height `div` brailleHeight - 1) then
+                         (height `div` brailleHeight - 1, brailleHeight -1)
                        else
                          (y', yDot)
-        i = (w `div` brailleWidth)*y'' + x''
+        i = (width `div` brailleWidth)*y'' + x''
       in
         (i, (xDot', yDot'))
-    ds = map dots ps
-    canvas' = V.accum (\v (x,y) -> setBit v x y) canvas ds
+    ds = V.map dots mergedPoints
+    canvas' = V.accum (\v (x,y) -> setBit v x y) canvas (V.toList ds)
   in
-    if w > 0 && h > 0 then
+    if width > 0 && height > 0 then
       canvas'
     else
       canvas

@@ -13,9 +13,10 @@ data Point = Point Double Double
 
 data CanvasState = CanvasState
   { canvas :: Canvas
+  , points :: V.Vector (Double,Double)
+  , mergedPoints :: V.Vector (Double,Double)
   , width :: Int
   , height :: Int
-  , points :: [(Double,Double)]
   , xMin :: Double
   , xMax :: Double
   , yMin :: Double
