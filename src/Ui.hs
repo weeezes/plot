@@ -62,13 +62,13 @@ parseSingles = A.many' parseSecondValue
 parsePoint :: A.Parser ParsedPoint
 parsePoint = do
   A.skipSpace
-  x <- A.double
-  A.takeWhile (\c -> not (A.isDigit c || c == '.' || c == '\n' || c == '\r'))
+  x <- A.signed A.double
+  A.takeWhile (\c -> not (A.isDigit c || c == '.' || c == '-' || c == '\n' || c == '\r'))
   possiblyDigit <- A.peekChar
   case possiblyDigit of
     Just c -> 
-      if A.isDigit c then do
-        y <- A.double
+      if A.isDigit c || c == '-' then do
+        y <- A.signed A.double
         return $ ParsedPoint x y
       else
         return $ ParsedSingle x

@@ -29,11 +29,14 @@ initCanvas w h =
 toBounds :: Double -> Double -> Double -> Double -> Double -> Double
 toBounds min max min' max' v =
   let
-    l  = abs $ max - min
-    l' = Prelude.max 1.0 (abs $ max' - min')
+    l  = max - min
+    l' = max' - min'
     r  = l / l'
   in
-    abs $ ((abs min') + v) * r 
+    if isInfinite r || isNaN r then
+      v - min'
+    else
+      r * (v - min')
 
 prettyBounds :: Double -> Double
 prettyBounds v =
