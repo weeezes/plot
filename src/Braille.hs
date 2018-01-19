@@ -30,8 +30,8 @@ toBounds :: Double -> Double -> Double -> Double -> Double -> Double
 toBounds min max min' max' v =
   let
     l  = abs $ max - min
-    l' = abs $ max' - min'
-    r  = (Prelude.min l l') / (Prelude.max l l')
+    l' = Prelude.max 1.0 (abs $ max' - min')
+    r  = l / l'
   in
     abs $ ((abs min') + v) * r 
 
