@@ -20,12 +20,16 @@ import qualified Graphics.Vty as V
 import qualified Options.Applicative as Options
 
 import Data.Monoid ((<>))
+import Data.Maybe (catMaybes)
 import Data.Char
 import qualified Data.Vector.Unboxed as V
 
 import Control.Monad (forever, void, foldM)
 import Control.Monad.IO.Class (liftIO)
 import Control.Concurrent (threadDelay, forkIO, ThreadId, killThread)
+
+import Control.Concurrent.STM.TQueue
+import Control.Monad.STM (STM(..), atomically)
 
 import qualified System.IO as IO
 import qualified System.Directory as D
@@ -63,15 +67,25 @@ parsePoint = do
         return $ ParsedSingle x
     Nothing -> return $ ParsedSingle x
 
-foldPoints chan acc (ParsedPoint x y) = do
-  writeBChan chan  $ Point x y
+foldPoints queue acc (ParsedPoint x y) = do
+  atomically $ writeTQueue queue $ Point x y
   return $ acc + 1
-foldPoints chan acc (ParsedSingle y) = do
-  writeBChan chan $ Point (acc+1) y
+foldPoints queue acc (ParsedSingle y) = do
+  atomically $ writeTQueue queue $ Point (acc+1) y
   return $ acc + 1
 
-loop chan h x = do
-  PP.evalStateT (PP.foldAllM (foldPoints chan) (return $ 0 :: IO Double) pure) $ PA.parsed parsePoint (PB.fromHandle h)
+loop queue h x = do
+  PP.evalStateT (PP.foldAllM (foldPoints queue) (return $ 0 :: IO Double) pure) $ PA.parsed parsePoint (PB.fromHandle h)
+  return ()
+
+redraw chan queue = do
+  forever $ do
+    ps <- sequence (replicate 1000 $ atomically $ tryReadTQueue queue) >>= \d -> return $ catMaybes d 
+    if length ps > 0 then
+      writeBChan chan $ Redraw ps
+    else
+      return ()
+    threadDelay 30000
   return ()
 
 settingsParser :: Options.Parser Settings
@@ -103,7 +117,9 @@ runUi = do
   if exists then do
     fd <- PIO.openFd f PIO.ReadOnly Nothing PIO.defaultFileFlags
     h <- PIO.fdToHandle fd
-    tid <- forkIO $ loop chan h 0
+    queue <- newTQueueIO
+    tid <- forkIO $ loop queue h 0
+    forkIO $ redraw chan queue
     vty <- V.mkVty V.defaultConfig
 
     Signals.installHandler Signals.sigTERM (Signals.Catch $ handleShutdown vty tid fd) Nothing
@@ -160,6 +176,25 @@ step x y c@CanvasState{..} =
     , yMax = yMax'
     }
 
+steps :: CanvasState -> [Point] -> CanvasState
+steps c@CanvasState{..} ps =
+  let
+    pointsToTuples = V.fromList $ map (\(Point x y) -> (x,y)) $ ps
+    points' = V.concat [points, pointsToTuples]
+    xMin' = V.foldl (\acc (x,_) -> min acc (prettyBounds x)) xMin pointsToTuples
+    xMax' = V.foldl (\acc (x,_) -> max acc (prettyBounds x)) xMax pointsToTuples
+    yMin' = V.foldl (\acc (_,y) -> min acc (prettyBounds y)) yMin pointsToTuples
+    yMax' = V.foldl (\acc (_,y) -> max acc (prettyBounds y)) yMax pointsToTuples
+  in
+    c
+    { points = points'
+    , mergedPoints = points'
+    , xMin = xMin'
+    , xMax = xMax'
+    , yMin = yMin'
+    , yMax = yMax'
+    }
+
 resize :: Int -> Int -> CanvasState -> CanvasState
 resize w h c =
   c { canvas = initCanvas w h, width = w*brailleWidth, height = h*brailleHeight }
@@ -167,7 +202,7 @@ resize w h c =
 initCanvasState :: Int -> Int -> CanvasState
 initCanvasState w h = CanvasState { canvas = initCanvas w h, points = V.empty, mergedPoints = V.empty, width = w*brailleWidth, height = h*brailleHeight, xMin = 0.0, xMax = 0.0, yMin = 0.0, yMax = 0.0 }
 
-app :: App CanvasState Point Name
+app :: App CanvasState UiEvent Name
 app = App { appDraw = drawUI
           , appChooseCursor = neverShowCursor
           , appHandleEvent = handleEvent
@@ -175,8 +210,8 @@ app = App { appDraw = drawUI
           , appAttrMap = const theMap
           }
 
-handleEvent :: CanvasState -> BrickEvent Name Point -> EventM Name (Next CanvasState )
-handleEvent c (AppEvent (Point x y)) = continue $ step x y c
+handleEvent :: CanvasState -> BrickEvent Name UiEvent -> EventM Name (Next CanvasState )
+handleEvent c (AppEvent (Redraw ps)) = continue $ steps c ps
 handleEvent c (VtyEvent (V.EvKey (V.KChar 'q') [])) = halt c
 handleEvent c (VtyEvent (V.EvKey V.KEsc []))        = halt c
 handleEvent c (VtyEvent (V.EvResize w h))           = continue $ resize (w-2) (h-2) c

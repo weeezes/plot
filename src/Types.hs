@@ -1,5 +1,6 @@
 module Types
   ( Canvas(..)
+  , UiEvent(..)
   , Point(..)
   , CanvasState(..)
   , Settings(..)
@@ -9,7 +10,8 @@ import qualified Data.Vector.Unboxed as V
 
 type Canvas = V.Vector Int
 
-data Point = Point Double Double 
+data Point = Point Double Double
+data UiEvent = Redraw [Point]
 
 data CanvasState = CanvasState
   { canvas :: Canvas

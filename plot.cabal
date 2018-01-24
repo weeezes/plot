@@ -55,6 +55,7 @@ library
     , pipes-bytestring
     , pipes-parse
     , pipes-attoparsec
+    , stm
   default-language: Haskell2010
 
 executable plot
