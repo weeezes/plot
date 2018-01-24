@@ -132,50 +132,6 @@ runUi = do
   else
     putStrLn "Given file descriptor doesn't exist"
 
-step :: Double -> Double -> CanvasState -> CanvasState
-step x y c@CanvasState{..} =
-  let
-    maxlen = 500
-    squashedLen = maxlen `div` 2
-    mergeRounds = V.length points `div` squashedLen
-    mergedPoints' =
-      if V.length mergedPoints == maxlen  then
-        V.generate squashedLen $ \i ->
-          let
-            p = points V.! (i*mergeRounds)
-            -- TODO maybe this could be something more sophisticated
-            -- squash acc i =
-            --   let
-            --     i' = min (V.length points - 1) i
-            --     x = max (fst acc) (fst $ points V.! i')
-            --     y = max (snd acc) (snd $ points V.! i')
-            --   in
-            --     (x,y)
-            -- p' = foldl (squash) (0,0) [i*mergeRounds..i*mergeRounds+mergeRounds]
-          in
-            p
-      else
-        V.snoc mergedPoints (x,y)
-    points' = V.snoc points (x,y)
-    mergeRounds' =
-      if V.length points == maxlen then
-        mergeRounds+1
-      else
-        mergeRounds
-    xMin' = min (prettyBounds x) xMin
-    xMax' = max (prettyBounds x) xMax
-    yMin' = min (prettyBounds y) yMin
-    yMax' = max (prettyBounds y) yMax
-  in
-    c
-    { points = points'
-    , mergedPoints = mergedPoints'
-    , xMin = xMin'
-    , xMax = xMax'
-    , yMin = yMin'
-    , yMax = yMax'
-    }
-
 steps :: CanvasState -> [Point] -> CanvasState
 steps c@CanvasState{..} ps =
   let
