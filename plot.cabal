@@ -63,7 +63,7 @@ executable plot
       Paths_plot
   hs-source-dirs:
       app
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N -O2 -fexcess-precision -optc-O3 -optc-ffast-math -fforce-recomp -optl-static -optl-pthread
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -O3 -fexcess-precision -optc-O3 -optc-ffast-math -fforce-recomp -optl-static -optl-pthread
   build-depends:
       base >=4.7 && <5
     , plot
