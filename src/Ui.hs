@@ -48,17 +48,6 @@ import Braille
 type Name = ()
 data ParsedPoint = ParsedPoint Double Double | ParsedSingle Double
 
-parseSecondValue :: A.Parser Double
-parseSecondValue = do
-  A.skipSpace
-  d <- A.double
-  A.skipSpace
-  A.option () A.endOfLine
-  return $ d
-
-parseSingles :: A.Parser [Double]
-parseSingles = A.many' parseSecondValue
-
 parsePoint :: A.Parser ParsedPoint
 parsePoint = do
   A.skipSpace
