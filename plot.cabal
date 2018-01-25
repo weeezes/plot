@@ -30,6 +30,8 @@ library
       Braille
     , Types
     , Ui
+    , PointParser
+    , CanvasState
   other-modules:
       Paths_plot
   hs-source-dirs:

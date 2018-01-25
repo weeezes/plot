@@ -2,7 +2,6 @@ module Types
   ( Canvas(..)
   , UiEvent(..)
   , Point(..)
-  , CanvasState(..)
   , Settings(..)
   ) where
 
@@ -12,18 +11,6 @@ type Canvas = V.Vector Int
 
 data Point = Point Double Double
 data UiEvent = Redraw [Point]
-
-data CanvasState = CanvasState
-  { canvas :: Canvas
-  , points :: V.Vector (Double,Double)
-  , mergedPoints :: V.Vector (Double,Double)
-  , width :: Int
-  , height :: Int
-  , xMin :: Double
-  , xMax :: Double
-  , yMin :: Double
-  , yMax :: Double
-  }
 
 data Settings = Settings
   { inputStream :: String
