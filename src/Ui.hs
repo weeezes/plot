@@ -125,8 +125,6 @@ drawUI c =
       ]
   ]
 
-renderCanvas cs = setDots cs
-
 stats c = padLeftRight 1 (str $ "Width: " ++ (show $ width c)) <+> padLeftRight 1 (str $ "Height: " ++ (show $ height c)) <+> padLeftRight 1 (str $ "X Min: " ++ (show $ xMin c)) <+> padLeftRight 1 (str $ "X Max: " ++ (show $ xMax c)) <+> padLeftRight 1 (str $ "Y Min: " ++ (show $ yMin c)) <+> padLeftRight 1 (str $ "Y Max: " ++ (show $ yMax c))
 
 wrapSettings = WrapSettings { preserveIndentation = False, breakLongWords = True }
@@ -137,7 +135,7 @@ canvasWidget cs =
 
       let width' = ctx^.availWidthL - 2
       let height' = ctx^.availHeightL - 2
-      let c = renderCanvas $ cs { canvas = initCanvas width' height', width = width'*brailleWidth, height = height'*brailleHeight }
+      let c = setDots $ cs { canvas = initCanvas width' height', width = width'*brailleWidth, height = height'*brailleHeight }
       
       render $ C.center $ withBorderStyle BS.unicodeBold
              $ B.borderWithLabel (str "Plot")
