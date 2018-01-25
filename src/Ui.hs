@@ -80,12 +80,12 @@ loop queue h x = do
 
 redraw chan queue = do
   forever $ do
-    ps <- sequence (replicate 1000 $ atomically $ tryReadTQueue queue) >>= \d -> return $ catMaybes d 
+    ps <- sequence (replicate 10000 $ atomically $ tryReadTQueue queue) >>= \d -> return $ catMaybes d
     if length ps > 0 then
       writeBChan chan $ Redraw ps
     else
       return ()
-    threadDelay 30000
+    threadDelay 60000
   return ()
 
 settingsParser :: Options.Parser Settings
