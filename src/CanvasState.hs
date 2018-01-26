@@ -15,8 +15,8 @@ import Braille
 
 data CanvasState = CanvasState
   { canvas :: Canvas
-  , points :: V.Vector (Double,Double)
-  , mergedPoints :: V.Vector (Double,Double)
+  , points :: V.Vector Point
+  , mergedPoints :: V.Vector Point
   , width :: Int
   , height :: Int
   , xMin :: Double
@@ -25,15 +25,14 @@ data CanvasState = CanvasState
   , yMax :: Double
   }
 
-steps :: CanvasState -> [Point] -> CanvasState
+steps :: CanvasState -> V.Vector Point -> CanvasState
 steps c@CanvasState{..} ps =
   let
-    pointsToTuples = V.fromList $ map (\(Point x y) -> (x,y)) $ ps
-    points' = V.concat [points, pointsToTuples]
-    xMin' = V.foldl (\acc (x,_) -> min acc (prettyBounds x)) xMin pointsToTuples
-    xMax' = V.foldl (\acc (x,_) -> max acc (prettyBounds x)) xMax pointsToTuples
-    yMin' = V.foldl (\acc (_,y) -> min acc (prettyBounds y)) yMin pointsToTuples
-    yMax' = V.foldl (\acc (_,y) -> max acc (prettyBounds y)) yMax pointsToTuples
+    points' = V.concat [points, ps]
+    xMin' = V.foldl (\acc (x,_) -> min acc (prettyBounds x)) xMin ps
+    xMax' = V.foldl (\acc (x,_) -> max acc (prettyBounds x)) xMax ps
+    yMin' = V.foldl (\acc (_,y) -> min acc (prettyBounds y)) yMin ps
+    yMax' = V.foldl (\acc (_,y) -> max acc (prettyBounds y)) yMax ps
   in
     c
     { points = points'

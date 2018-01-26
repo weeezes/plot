@@ -9,8 +9,8 @@ import qualified Data.Vector.Unboxed as V
 
 type Canvas = V.Vector Int
 
-data Point = Point Double Double
-data UiEvent = Redraw [Point]
+type Point = (Double,Double)
+data UiEvent = Redraw (V.Vector Point)
 
 data Settings = Settings
   { inputStream :: String

@@ -32,10 +32,10 @@ parsePoint = do
     Nothing -> return $ ParsedSingle x
 
 foldPoints queue acc (ParsedPoint x y) = do
-  atomically $ writeTQueue queue $ Point x y
+  atomically $ writeTQueue queue $ (x,y)
   return $ acc + 1
 foldPoints queue acc (ParsedSingle y) = do
-  atomically $ writeTQueue queue $ Point (acc+1) y
+  atomically $ writeTQueue queue $ (acc+1, y)
   return $ acc + 1
 
 loop queue h x = do

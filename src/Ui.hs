@@ -45,13 +45,21 @@ import CanvasState
 
 type Name = ()
 
+untilNone acc queue = do
+  if V.length acc > 50000 then
+    return acc
+  else do
+    v <- atomically $ tryReadTQueue queue
+    case v of
+      Just v -> untilNone (V.snoc acc v) queue
+      Nothing -> return acc
 
 redraw chan queue = do
   forever $ do
-    ps <- sequence (replicate 10000 $ atomically $ tryReadTQueue queue) >>= \d -> return $ catMaybes d
-    if length ps > 0 then
+    ps <- untilNone V.empty queue
+    if V.length ps > 0 then do
       writeBChan chan $ Redraw ps
-    else
+    else do
       return ()
     threadDelay 60000
   return ()
