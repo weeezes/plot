@@ -1,9 +1,14 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 module PointParser
   ( loop
   ) where
 
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.Attoparsec.ByteString.Char8 as A
+
+import qualified Data.Vector as V
+import qualified Data.Vector as VU
 
 import qualified Pipes.ByteString as PB
 import qualified Pipes.Parse as PP
@@ -14,7 +19,7 @@ import Control.Monad.STM (STM(..), atomically)
 
 import Types
 
-data ParsedPoint = ParsedPoint Double Double | ParsedSingle Double
+data ParsedPoint = ParsedPoint Point | ParsedSingle Double
 
 parsePoint :: A.Parser ParsedPoint
 parsePoint = do
@@ -26,18 +31,21 @@ parsePoint = do
     Just c -> 
       if A.isDigit c || c == '-' then do
         y <- A.signed A.double
-        return $ ParsedPoint x y
+        return $ ParsedPoint (x,y)
       else
         return $ ParsedSingle x
     Nothing -> return $ ParsedSingle x
 
-foldPoints queue acc (ParsedPoint x y) = do
-  atomically $ writeTQueue queue $ (x,y)
-  return $ acc + 1
-foldPoints queue acc (ParsedSingle y) = do
-  atomically $ writeTQueue queue $ (acc+1, y)
-  return $ acc + 1
+parsedPointToPoint :: Int -> ParsedPoint -> Point
+parsedPointToPoint _ (ParsedPoint p) = p
+parsedPointToPoint x (ParsedSingle y) = (fromIntegral x,y)
+foldParsedPoints ps =
+  V.imap parsedPointToPoint (V.fromList ps)
+
+foldPoints queue acc ps = do
+  atomically $ writeTQueue queue $ VU.convert $ foldParsedPoints ps
+  return $ acc + (fromIntegral $ length ps)
 
 loop queue h x = do
-  PP.evalStateT (PP.foldAllM (foldPoints queue) (return $ 0 :: IO Double) pure) $ PA.parsed parsePoint (PB.fromHandle h)
+  PP.evalStateT (PP.foldAllM (foldPoints queue) (return $ 0 :: IO Double) pure) $ PA.parsed (A.many1 $ parsePoint) (PB.fromHandle h)
   return ()

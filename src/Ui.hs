@@ -46,13 +46,13 @@ import CanvasState
 type Name = ()
 
 untilNone acc queue = do
-  if V.length acc > 50000 then
-    return acc
-  else do
-    v <- atomically $ tryReadTQueue queue
-    case v of
-      Just v -> untilNone (V.snoc acc v) queue
-      Nothing -> return acc
+ -- if V.length acc > 50000 then
+ --   return acc
+ -- else do
+  v <- atomically $ tryReadTQueue queue
+  case v of
+    Just v -> untilNone (V.concat [acc, v]) queue
+    Nothing -> return acc
 
 redraw chan queue = do
   forever $ do
