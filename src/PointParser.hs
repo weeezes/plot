@@ -15,7 +15,6 @@ import qualified Data.Attoparsec.ByteString.Lazy as AL
 
 import qualified Data.Vector as V
 import qualified Data.Vector as VU
-import Data.Traversable (sequence)
 import Data.Time.Clock.POSIX
 import Data.Time.Clock
 
@@ -43,7 +42,6 @@ logPerf perf@Perf{..} = do
 
 parsePoint :: A.Parser ParsedPoint
 parsePoint = do
-  --A.skipSpace
   x <- A.signed A.double
   A.takeWhile (\c -> not (A.isDigit c || c == '.' || c == '-' || c == '\n' || c == '\r'))
   possiblyDigit <- A.peekChar
@@ -62,8 +60,6 @@ parsePoint = do
 parsedPointToPoint :: Int -> Int -> ParsedPoint -> Point
 parsedPointToPoint currentIndex _ (ParsedPoint p) = p
 parsedPointToPoint currentIndex x (ParsedSingle y) = (fromIntegral $ currentIndex + x,y)
---foldParsedPoints currentIndex ps =
---  V.imap (parsedPointToPoint currentIndex) (V.fromList ps)
 
 foldPoints queue acc ps = do
   atomically $ writeTQueue queue $ parsedPointToPoint acc acc ps
@@ -83,12 +79,8 @@ loop queue h = do
     return ()
 
 loop' queue perf currentIndex points = do
-  --logPerf perf
-
   if not (null points) then do
     currentIndex' <- foldPoints queue currentIndex (head points)
-    --currentTime' <- getPOSIXTime
-    --loop' queue (perf { lastTime = currentTime perf, currentTime = currentTime' , lastCount = currentIndex, currentCount = currentIndex' }) currentIndex' (tail points)
     loop' queue perf currentIndex' (tail points)
   else
     return ()
