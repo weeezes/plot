@@ -55,6 +55,7 @@ parsePoint = do
            else
              return $ ParsedSingle x
          Nothing -> return $ ParsedSingle x
+  A.takeTill (\c -> c == '\r' || c == '\n')
   A.endOfLine
   return p
 
