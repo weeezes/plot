@@ -16,7 +16,6 @@ import Braille
 data CanvasState = CanvasState
   { canvas :: Canvas
   , points :: V.Vector Point
-  , mergedPoints :: V.Vector Point
   , width :: Int
   , height :: Int
   , xMin :: Double
@@ -36,7 +35,6 @@ steps c@CanvasState{..} ps =
   in
     c
     { points = points'
-    , mergedPoints = points'
     , xMin = xMin'
     , xMax = xMax'
     , yMin = yMin'
@@ -48,7 +46,7 @@ resize w h c =
   c { canvas = initCanvas w h, width = w*brailleWidth, height = h*brailleHeight }
 
 initCanvasState :: Int -> Int -> CanvasState
-initCanvasState w h = CanvasState { canvas = initCanvas w h, points = V.empty, mergedPoints = V.empty, width = w*brailleWidth, height = h*brailleHeight, xMin = 0.0, xMax = 0.0, yMin = 0.0, yMax = 0.0 }
+initCanvasState w h = CanvasState { canvas = initCanvas w h, points = V.empty, width = w*brailleWidth, height = h*brailleHeight, xMin = 0.0, xMax = 0.0, yMin = 0.0, yMax = 0.0 }
 
 setDots :: CanvasState -> Canvas
 setDots cs@CanvasState{..} =
@@ -70,7 +68,7 @@ setDots cs@CanvasState{..} =
         i = (width `div` brailleWidth)*y'' + x''
       in
         (i, (xDot', yDot'))
-    ds = V.map dots mergedPoints
+    ds = V.map dots points
     canvas' = V.accum (\v (x,y) -> setBit v x y) canvas (V.toList ds)
   in
     if width > 0 && height > 0 then
