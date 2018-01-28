@@ -52,11 +52,7 @@ library
     , directory
     , attoparsec
     , bytestring
-    , pipes
-    , pipes-text
-    , pipes-bytestring
-    , pipes-parse
-    , pipes-attoparsec
+    , time
     , stm
   default-language: Haskell2010
 

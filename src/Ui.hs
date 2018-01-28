@@ -8,7 +8,7 @@ import Brick
 import Brick.BChan (newBChan, writeBChan)
 import Brick.Types (Size)
 import qualified Brick.Widgets.Border as B
-import qualified Brick.Widgets.Border.Style as BS
+import qualified Brick.Widgets.Border.Style as Border
 import qualified Brick.Widgets.Center as C
 
 import Text.Wrap (WrapSettings(..))
@@ -22,6 +22,8 @@ import Data.Monoid ((<>))
 import Data.Maybe (catMaybes)
 import Data.Char
 import qualified Data.Vector.Unboxed as V
+import qualified Data.Sequence as Seq
+import Data.Foldable (toList)
 
 import Control.Monad (forever, void, foldM)
 import Control.Monad.IO.Class (liftIO)
@@ -46,22 +48,23 @@ import CanvasState
 type Name = ()
 
 untilNone acc queue = do
- -- if V.length acc > 50000 then
- --   return acc
- -- else do
-  v <- atomically $ tryReadTQueue queue
-  case v of
-    Just v -> untilNone (V.concat [acc, v]) queue
-    Nothing -> return acc
+
+  if Seq.length acc >= 50000 then
+    return $ V.fromList $ toList acc
+  else do
+    v <- atomically $ tryReadTQueue queue
+    case v of
+      Just v -> untilNone (acc Seq.|> v) queue
+      Nothing -> return $ V.fromList $ toList acc
 
 redraw chan queue = do
   forever $ do
-    ps <- untilNone V.empty queue
+    ps <- untilNone Seq.empty queue
     if V.length ps > 0 then do
       writeBChan chan $ Redraw ps
     else do
       return ()
-    threadDelay 60000
+    threadDelay 30000
   return ()
 
 settingsParser :: Options.Parser Settings
@@ -72,12 +75,12 @@ settingsParserInfo :: Options.ParserInfo Settings
 settingsParserInfo = Options.info (settingsParser Options.<**> Options.helper) 
                                   (Options.progDesc "Plot stuff on the terminal.")
 
-handleShutdown :: V.Vty -> ThreadId -> Fd -> IO ()
-handleShutdown vty tid fd = do
+handleShutdown :: V.Vty -> ThreadId -> IO.Handle -> IO ()
+handleShutdown vty tid h = do
   putStrLn "Received SIGTERM, shutting down."
   -- TODO exit with proper error code if any of these fail
   killThread tid
-  PIO.closeFd fd
+  IO.hClose h
   V.shutdown vty
   Process.exitImmediately Exit.ExitSuccess
 
@@ -91,14 +94,15 @@ runUi = do
   let f = inputStream settings
   exists <- D.doesFileExist f
   if exists then do
-    fd <- PIO.openFd f PIO.ReadOnly Nothing PIO.defaultFileFlags
-    h <- PIO.fdToHandle fd
+    h <- IO.openFile f IO.ReadMode
+    IO.hSetBinaryMode h True
+    IO.hSetBuffering h $ IO.BlockBuffering (Just $ 10^5)
     queue <- newTQueueIO
-    tid <- forkIO $ loop queue h 0
+    tid <- forkIO $ loop queue h
     forkIO $ redraw chan queue
     vty <- V.mkVty V.defaultConfig
 
-    Signals.installHandler Signals.sigTERM (Signals.Catch $ handleShutdown vty tid fd) Nothing
+    Signals.installHandler Signals.sigTERM (Signals.Catch $ handleShutdown vty tid h) Nothing
 
     void $ customMain (pure vty) (Just chan) app c
     putStrLn "Bye!"
@@ -145,7 +149,7 @@ canvasWidget cs =
       let height' = ctx^.availHeightL - 2
       let c = setDots $ cs { canvas = initCanvas width' height', width = width'*brailleWidth, height = height'*brailleHeight }
       
-      render $ C.center $ withBorderStyle BS.unicodeBold
+      render $ C.center $ withBorderStyle Border.unicodeBold
              $ B.borderWithLabel (str "Plot")
              $ vBox (rows width' height' (V.toList $ c))
   where
