@@ -50,17 +50,17 @@ type Name = ()
 untilNone acc queue = do
 
   if Seq.length acc >= 50000 then
-    return $ V.fromList $ toList acc
+    return $ acc
   else do
     v <- atomically $ tryReadTQueue queue
     case v of
       Just v -> untilNone (acc Seq.|> v) queue
-      Nothing -> return $ V.fromList $ toList acc
+      Nothing -> return $  acc
 
 redraw chan queue = do
   forever $ do
     ps <- untilNone Seq.empty queue
-    if V.length ps > 0 then do
+    if Seq.length ps > 0 then do
       writeBChan chan $ Redraw ps
     else do
       return ()
@@ -151,7 +151,7 @@ canvasWidget cs =
       
       render $ C.center $ withBorderStyle Border.unicodeBold
              $ B.borderWithLabel (str "Plot")
-             $ vBox (rows width' height' (V.toList $ c))
+             $ vBox (rows width' height' (toList $ c))
   where
     rows w h c    = [strWrapWith wrapSettings $ map chr c]
 

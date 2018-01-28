@@ -9,13 +9,15 @@ module CanvasState
   ) where
 
 import qualified Data.Vector.Unboxed as V
+import qualified Data.Sequence as Seq
+import Data.Foldable (toList)
 
 import Types
 import Braille
 
 data CanvasState = CanvasState
   { canvas :: Canvas
-  , points :: V.Vector Point
+  , points :: Seq.Seq Point
   , width :: Int
   , height :: Int
   , xMin :: Double
@@ -24,14 +26,14 @@ data CanvasState = CanvasState
   , yMax :: Double
   }
 
-steps :: CanvasState -> V.Vector Point -> CanvasState
+steps :: CanvasState -> Seq.Seq Point -> CanvasState
 steps c@CanvasState{..} ps =
   let
-    points' = V.concat [points, ps]
-    xMin' = V.foldl (\acc (x,_) -> min acc (prettyBounds x)) xMin ps
-    xMax' = V.foldl (\acc (x,_) -> max acc (prettyBounds x)) xMax ps
-    yMin' = V.foldl (\acc (_,y) -> min acc (prettyBounds y)) yMin ps
-    yMax' = V.foldl (\acc (_,y) -> max acc (prettyBounds y)) yMax ps
+    points' = points Seq.>< ps
+    xMin' = foldl (\acc (x,_) -> min acc (prettyBounds x)) xMin ps
+    xMax' = foldl (\acc (x,_) -> max acc (prettyBounds x)) xMax ps
+    yMin' = foldl (\acc (_,y) -> min acc (prettyBounds y)) yMin ps
+    yMax' = foldl (\acc (_,y) -> max acc (prettyBounds y)) yMax ps
   in
     c
     { points = points'
@@ -46,7 +48,14 @@ resize w h c =
   c { canvas = initCanvas w h, width = w*brailleWidth, height = h*brailleHeight }
 
 initCanvasState :: Int -> Int -> CanvasState
-initCanvasState w h = CanvasState { canvas = initCanvas w h, points = V.empty, width = w*brailleWidth, height = h*brailleHeight, xMin = 0.0, xMax = 0.0, yMin = 0.0, yMax = 0.0 }
+initCanvasState w h = CanvasState { canvas = initCanvas w h, points = Seq.empty, width = w*brailleWidth, height = h*brailleHeight, xMin = 0.0, xMax = 0.0, yMin = 0.0, yMax = 0.0 }
+
+setDot seq p =
+  let
+    (i,(x,y)) = p
+    setBit' x y v = setBit v x y
+  in
+    Seq.adjust (setBit' x y) i seq
 
 setDots :: CanvasState -> Canvas
 setDots cs@CanvasState{..} =
@@ -68,8 +77,10 @@ setDots cs@CanvasState{..} =
         i = (width `div` brailleWidth)*y'' + x''
       in
         (i, (xDot', yDot'))
-    ds = V.map dots points
-    canvas' = V.accum (\v (x,y) -> setBit v x y) canvas (V.toList ds)
+    --ds = map dots points -- :: Seq.Seq (Int, (Int, Int))
+    --ds = foldl (\acc p -> acc Seq.|> dots p) Seq.empty points :: Seq.Seq (Int, (Int,Int))
+    --canvas' = V.accum (\v (x,y) -> setBit v x y) canvas (toList ds)
+    canvas' = foldl (\acc p -> setDot acc (dots p)) canvas points
   in
     if width > 0 && height > 0 then
       canvas'
