@@ -57,12 +57,19 @@ untilNone acc queue = do
       Just v -> untilNone (acc Seq.|> v) queue
       Nothing -> return $ V.fromList $ toList acc
 
-redraw chan queue = do
+redraw h shouldQuitAfterDone chan queue = do
+  atomically $ peekTQueue queue -- Wait for first value before jumping into forever
   forever $ do
     ps <- untilNone Seq.empty queue
     if V.length ps > 0 then do
       writeBChan chan $ Redraw ps
     else do
+      isClosed <- IO.hIsClosed h
+      noData <- atomically $ isEmptyTQueue queue
+      if shouldQuitAfterDone && noData && isClosed then do
+        writeBChan chan Die
+      else
+        return ()
       return ()
     threadDelay 30000
   return ()
@@ -70,6 +77,7 @@ redraw chan queue = do
 settingsParser :: Options.Parser Settings
 settingsParser = Settings
   <$> Options.argument Options.str (Options.metavar "FD")
+  <*> Options.switch (Options.long "quit-after-done" <> Options.short 'k' <> Options.help "Quit instantly after done reading and drawing data")
 
 settingsParserInfo :: Options.ParserInfo Settings
 settingsParserInfo = Options.info (settingsParser Options.<**> Options.helper) 
@@ -99,7 +107,7 @@ runUi = do
     IO.hSetBuffering h $ IO.BlockBuffering (Just $ 10^5)
     queue <- newTQueueIO
     loopTid <- forkIO $ loop queue h
-    redrawTid <- forkIO $ redraw chan queue
+    redrawTid <- forkIO $ redraw h (quitAfterDone settings) chan queue
     vty <- V.mkVty V.defaultConfig
 
     Signals.installHandler Signals.sigTERM (Signals.Catch $ handleShutdown vty [loopTid, redrawTid] h) Nothing
@@ -121,7 +129,8 @@ app = App { appDraw = drawUI
           }
 
 handleEvent :: CanvasState -> BrickEvent Name UiEvent -> EventM Name (Next CanvasState )
-handleEvent c (AppEvent (Redraw ps)) = continue $ steps c ps
+handleEvent c (AppEvent (Redraw ps))                = continue $ steps c ps
+handleEvent c (AppEvent Die)                        = halt c
 handleEvent c (VtyEvent (V.EvKey (V.KChar 'q') [])) = halt c
 handleEvent c (VtyEvent (V.EvKey V.KEsc []))        = halt c
 handleEvent c (VtyEvent (V.EvResize w h))           = continue $ resize (w-2) (h-2) c

@@ -75,6 +75,7 @@ loop queue h = do
       AL.Fail i _ e -> print "Failed parsing"
       AL.Done i r -> do
         loop' queue (Perf { lastTime = startTime, currentTime = startTime, lastCount = 0, currentCount = 0 }) 0 r
+    IO.hClose h
   else
     return ()
 
