@@ -6,12 +6,11 @@ module Types
   ) where
 
 import qualified Data.Vector.Unboxed as V
-import qualified Data.Sequence as Seq
 
-type Canvas = Seq.Seq Int
+type Canvas = V.Vector Int
 
 type Point = (Double,Double)
-data UiEvent = Redraw (Seq.Seq Point)
+data UiEvent = Redraw (V.Vector Point)
 
 data Settings = Settings
   { inputStream :: String

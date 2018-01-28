@@ -3,7 +3,6 @@ module Braille where
 import Data.Char
 import Data.Bits (xor, (.|.))
 import qualified Data.Vector.Unboxed as V
-import qualified Data.Sequence as Seq
 
 import Types
 
@@ -22,7 +21,7 @@ setBit c x y =
 initCanvas :: Int -> Int -> Canvas
 initCanvas w h =
   let
-    canvas = Seq.fromList $ replicate (w*h) base
+    canvas = V.replicate (w*h) base
   in
     canvas
 
