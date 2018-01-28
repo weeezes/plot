@@ -75,11 +75,11 @@ settingsParserInfo :: Options.ParserInfo Settings
 settingsParserInfo = Options.info (settingsParser Options.<**> Options.helper) 
                                   (Options.progDesc "Plot stuff on the terminal.")
 
-handleShutdown :: V.Vty -> ThreadId -> IO.Handle -> IO ()
-handleShutdown vty tid h = do
+handleShutdown :: V.Vty -> [ThreadId] -> IO.Handle -> IO ()
+handleShutdown vty tids h = do
   putStrLn "Received SIGTERM, shutting down."
   -- TODO exit with proper error code if any of these fail
-  killThread tid
+  mapM killThread tids
   IO.hClose h
   V.shutdown vty
   Process.exitImmediately Exit.ExitSuccess
@@ -98,15 +98,15 @@ runUi = do
     IO.hSetBinaryMode h True
     IO.hSetBuffering h $ IO.BlockBuffering (Just $ 10^5)
     queue <- newTQueueIO
-    tid <- forkIO $ loop queue h
-    forkIO $ redraw chan queue
+    loopTid <- forkIO $ loop queue h
+    redrawTid <- forkIO $ redraw chan queue
     vty <- V.mkVty V.defaultConfig
 
-    Signals.installHandler Signals.sigTERM (Signals.Catch $ handleShutdown vty tid h) Nothing
+    Signals.installHandler Signals.sigTERM (Signals.Catch $ handleShutdown vty [loopTid, redrawTid] h) Nothing
 
     void $ customMain (pure vty) (Just chan) app c
     putStrLn "Bye!"
-    killThread tid
+    mapM killThread [loopTid, redrawTid]
     IO.hClose h
 
   else
