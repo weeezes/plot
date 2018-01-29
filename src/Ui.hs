@@ -104,7 +104,6 @@ runUi = do
   if exists then do
     h <- IO.openFile f IO.ReadMode
     IO.hSetBinaryMode h True
-    IO.hSetBuffering h $ IO.BlockBuffering (Just $ 10^5)
     queue <- newTQueueIO
     loopTid <- forkIO $ loop queue h
     redrawTid <- forkIO $ redraw h (quitAfterDone settings) chan queue
@@ -131,6 +130,8 @@ app = App { appDraw = drawUI
 handleEvent :: CanvasState -> BrickEvent Name UiEvent -> EventM Name (Next CanvasState )
 handleEvent c (AppEvent (Redraw ps))                = continue $ steps c ps
 handleEvent c (AppEvent Die)                        = halt c
+handleEvent c (VtyEvent (V.EvKey (V.KChar 'a') [])) = continue $ c { plotType = AreaPlot }
+handleEvent c (VtyEvent (V.EvKey (V.KChar 'p') [])) = continue $ c { plotType = PointPlot }
 handleEvent c (VtyEvent (V.EvKey (V.KChar 'q') [])) = halt c
 handleEvent c (VtyEvent (V.EvKey V.KEsc []))        = halt c
 handleEvent c (VtyEvent (V.EvResize w h))           = continue $ resize (w-2) (h-2) c
@@ -156,7 +157,7 @@ canvasWidget cs =
 
       let width' = ctx^.availWidthL - 2
       let height' = ctx^.availHeightL - 2
-      let c = setDots $ cs { canvas = initCanvas width' height', width = width'*brailleWidth, height = height'*brailleHeight }
+      let c = plot $ cs { canvas = initCanvas width' height', width = width'*brailleWidth, height = height'*brailleHeight }
       
       render $ C.center $ withBorderStyle Border.unicodeBold
              $ B.borderWithLabel (str "Plot")

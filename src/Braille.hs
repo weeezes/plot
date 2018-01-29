@@ -6,8 +6,9 @@ import qualified Data.Vector.Unboxed as V
 
 import Types
 
-base = 0x2800
-dots = [0x1,0x8,0x2,0x10,0x4,0x20,0x40,0x80]
+base = 0x2800 :: Int
+full = 0x28FF :: Int
+dots = [0x1,0x8,0x2,0x10,0x4,0x20,0x40,0x80] :: [Int]
 brailleWidth = 2 :: Int
 brailleHeight = 4 :: Int
 
@@ -15,6 +16,7 @@ toggleBit :: Int -> Int -> Int -> Int
 toggleBit c x y =
   c `xor` dots !! (y*2+x)
 
+setBit :: Int -> Int -> Int -> Int
 setBit c x y =
   c .|. dots !! (y*2+x)
 
