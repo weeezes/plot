@@ -131,6 +131,8 @@ handleEvent :: CanvasState -> BrickEvent Name UiEvent -> EventM Name (Next Canva
 handleEvent c (AppEvent (Redraw ps))                = continue $ steps c ps
 handleEvent c (AppEvent Die)                        = halt c
 handleEvent c (VtyEvent (V.EvKey (V.KChar 'a') [])) = continue $ c { plotType = AreaPlot }
+handleEvent c (VtyEvent (V.EvKey (V.KChar 'b') [])) = continue $ c { plotType = BarPlot }
+handleEvent c (VtyEvent (V.EvKey (V.KChar 'h') [])) = continue $ c { plotType = HistogramPlot }
 handleEvent c (VtyEvent (V.EvKey (V.KChar 'p') [])) = continue $ c { plotType = PointPlot }
 handleEvent c (VtyEvent (V.EvKey (V.KChar 'q') [])) = halt c
 handleEvent c (VtyEvent (V.EvKey V.KEsc []))        = halt c
