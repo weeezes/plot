@@ -29,8 +29,8 @@ steps :: CanvasState -> V.Vector Point -> CanvasState
 steps c@CanvasState{..} ps =
   let
     points' = V.concat [points, ps]
-    xMin' = V.foldl (\acc (x,_) -> min acc (prettyBounds x)) xMin ps
-    xMax' = V.foldl (\acc (x,_) -> max acc (prettyBounds x)) xMax ps
+    xMin' = V.foldl (\acc (x,_) -> min acc x) xMin ps
+    xMax' = V.foldl (\acc (x,_) -> max acc x) xMax ps
     yMin' = V.foldl (\acc (_,y) -> min acc (prettyBounds y)) yMin ps
     yMax' = V.foldl (\acc (_,y) -> max acc (prettyBounds y)) yMax ps
   in
