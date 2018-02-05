@@ -39,11 +39,11 @@ loop queue h = do
 
 loop' queue availableData currentIndex = do
   if not (BS.null availableData) then do
-    let r = AL.parse (A.choice [A.count 10 parsePoint, A.count 1 parsePoint]) availableData
+    let r = AL.parse parsePoint availableData
     case r of
       AL.Fail i _ e -> print "Failed parsing"
       AL.Done leftover r -> do
-        currentIndex' <- foldPoints queue currentIndex r
+        currentIndex' <- foldPoints queue currentIndex [r]
         loop' queue leftover currentIndex'
   else
     return ()
