@@ -56,7 +56,7 @@ untilNoneTimeout startTime acc queue = do
   else do
     v <- atomically $ tryReadTQueue queue
     case v of
-      Just v -> untilNoneTimeout startTime (acc Seq.|> v) queue
+      Just v -> untilNoneTimeout startTime (acc Seq.>< Seq.fromList v) queue
       Nothing -> untilNoneTimeout startTime acc queue
 
 redraw h shouldQuitAfterDone chan queue = do
@@ -74,6 +74,7 @@ redraw h shouldQuitAfterDone chan queue = do
       else
         return ()
       return ()
+    threadDelay 100000
   return ()
 
 settingsParser :: Options.Parser Settings

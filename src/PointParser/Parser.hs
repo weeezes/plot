@@ -38,10 +38,11 @@ parsePoint = do
   A.endOfLine
   return p
 
-parsedPointToPoint :: Int -> Int -> ParsedPoint -> Point
-parsedPointToPoint currentIndex _ (ParsedPoint p) = p
-parsedPointToPoint currentIndex x (ParsedSingle y) = (fromIntegral $ currentIndex + x,y)
+parsedPointToPoint :: Int -> ParsedPoint -> Point
+parsedPointToPoint _ (ParsedPoint p) = p
+parsedPointToPoint x (ParsedSingle y) = (fromIntegral $ x,y)
 
-foldPoints queue acc ps = do
-  foldM (\acc v -> (atomically $ writeTQueue queue $ parsedPointToPoint acc acc v) >>= \_ -> return $ acc+1) acc ps :: IO Int
-  return $ acc + (length ps) 
+foldPoints queue startIndex ps = do
+  let ps' = zipWith (\i v -> parsedPointToPoint i v) [startIndex..] ps
+  atomically $ writeTQueue queue ps'
+  return $ startIndex + (length ps)
