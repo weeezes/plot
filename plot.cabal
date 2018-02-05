@@ -30,7 +30,9 @@ library
       Braille
     , Types
     , Ui
-    , PointParser
+    , PointParser.Lazy
+    , PointParser.Strict
+    , PointParser.Parser
     , CanvasState
   other-modules:
       Paths_plot

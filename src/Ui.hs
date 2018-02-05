@@ -24,6 +24,7 @@ import Data.Char
 import qualified Data.Vector.Unboxed as V
 import qualified Data.Sequence as Seq
 import Data.Foldable (toList)
+import Data.Time.Clock.POSIX (getPOSIXTime)
 
 import Control.Monad (forever, void, foldM)
 import Control.Monad.IO.Class (liftIO)
@@ -42,25 +43,27 @@ import qualified System.Exit as Exit
 
 import Types
 import Braille
-import PointParser
+import PointParser.Lazy as PPL
+import PointParser.Strict as PPS
 import CanvasState
 
 type Name = ()
 
-untilNone acc queue = do
-
-  if Seq.length acc >= 50000 then
+untilNoneTimeout startTime acc queue = do
+  currentTime <- getPOSIXTime
+  if currentTime - startTime > 1 then do
     return $ V.fromList $ toList acc
   else do
     v <- atomically $ tryReadTQueue queue
     case v of
-      Just v -> untilNone (acc Seq.|> v) queue
-      Nothing -> return $ V.fromList $ toList acc
+      Just v -> untilNoneTimeout startTime (acc Seq.|> v) queue
+      Nothing -> untilNoneTimeout startTime acc queue
 
 redraw h shouldQuitAfterDone chan queue = do
   atomically $ peekTQueue queue -- Wait for first value before jumping into forever
   forever $ do
-    ps <- untilNone Seq.empty queue
+    startTime <- getPOSIXTime
+    ps <- untilNoneTimeout startTime Seq.empty queue
     if V.length ps > 0 then do
       writeBChan chan $ Redraw ps
     else do
@@ -71,13 +74,13 @@ redraw h shouldQuitAfterDone chan queue = do
       else
         return ()
       return ()
-    threadDelay 30000
   return ()
 
 settingsParser :: Options.Parser Settings
 settingsParser = Settings
   <$> Options.argument Options.str (Options.metavar "FD")
   <*> Options.switch (Options.long "quit-after-done" <> Options.short 'k' <> Options.help "Quit instantly after done reading and drawing data")
+  <*> Options.switch (Options.long "slurp" <> Options.short 's' <> Options.help "Read the full input to memory before parsing")
 
 settingsParserInfo :: Options.ParserInfo Settings
 settingsParserInfo = Options.info (settingsParser Options.<**> Options.helper) 
@@ -94,7 +97,7 @@ handleShutdown vty tids h = do
 
 runUi :: IO()
 runUi = do
-  chan <- newBChan 100
+  chan <- newBChan 1
   let c = initCanvasState 50 20 :: CanvasState
   let w = width c
   let h = height c
@@ -105,7 +108,10 @@ runUi = do
     h <- IO.openFile f IO.ReadMode
     IO.hSetBinaryMode h True
     queue <- newTQueueIO
-    loopTid <- forkIO $ loop queue h
+    loopTid <- if slurp settings then
+                 forkIO $ PPS.loop queue h
+               else
+                 forkIO $ PPL.loop queue h
     redrawTid <- forkIO $ redraw h (quitAfterDone settings) chan queue
     vty <- V.mkVty V.defaultConfig
 

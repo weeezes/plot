@@ -17,5 +17,6 @@ data PlotType = PointPlot | AreaPlot | BarPlot | HistogramPlot
 data Settings = Settings
   { inputStream :: String
   , quitAfterDone :: Bool
+  , slurp :: Bool
   }
 
