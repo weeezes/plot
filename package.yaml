@@ -1,26 +1,34 @@
 name:                plot
 version:             0.1.0.0
-github:              "githubuser/test"
+github:              "weeezes/plot"
 license:             BSD3
-author:              "Author name here"
-maintainer:          "example@example.com"
-copyright:           "2018 Author name here"
+author:              "Vesa Hagström"
+copyright:           "2018 Vesa Hagström"
 
 extra-source-files:
 - README.md
 - ChangeLog.md
 
-# Metadata used when publishing your package
-# synopsis:            Short description of your package
-# category:            Web
-
-# To avoid duplicated efforts in documentation and dealing with the
-# complications of embedding Haddock markup inside cabal files, it is
-# common to point users to the README.md file.
-description:         Please see the README on Github at <https://github.com/githubuser/test#readme>
+description:         Please see the README on Github at <https://github.com/weeezes/plot#readme>
 
 dependencies:
 - base >= 4.7 && < 5
+- attoparsec
+- brick
+- bytestring
+- containers
+- directory
+- linear
+- microlens
+- microlens-th
+- optparse-applicative
+- random
+- stm
+- time
+- unix
+- vector
+- vty
+- word-wrap
 
 library:
   source-dirs: src
@@ -33,6 +41,13 @@ executables:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
+    - -O3 
+    - -fexcess-precision
+    - -optc-O3
+    - -optc-ffast-math
+    - -fforce-recomp
+    - -optl-static
+    - -optl-pthread
     dependencies:
     - plot
 
