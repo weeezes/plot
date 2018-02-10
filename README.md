@@ -12,9 +12,10 @@ A simple tool for plotting data in the terminal
 
 Install [Stack](https://docs.haskellstack.org/en/stable/README/#how-to-install)
 
-Run `stack build`
-
-Find the binary `find .stack-work/install -name "plot" | xargs ls -1t | head -n 1`
+```
+stack build
+stack install
+```
 
 ---
 
