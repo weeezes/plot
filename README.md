@@ -12,6 +12,8 @@ A simple tool for plotting data in the terminal
 
 Install [Stack](https://docs.haskellstack.org/en/stable/README/#how-to-install)
 
+Make sure you have `terminfo` installed on the system, eg. on Alpine `apk add ncurses-terminfo`.
+
 ```
 stack build
 stack install
