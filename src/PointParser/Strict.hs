@@ -36,7 +36,6 @@ loop queue h = do
       Right r -> foldPoints queue 0 r >> return ()
 
     endTime <- getPOSIXTime
-    BSC.appendFile "./log" $ BSC.concat ["Perf strict: ", BSC.pack (show (endTime - startTime)), "\n"]
     IO.hClose h
   else
     return ()

@@ -32,7 +32,6 @@ loop queue h = do
     startTime <- getPOSIXTime
     loop' queue available  0
     endTime <- getPOSIXTime
-    BSC.appendFile "./log" $ BSC.concat ["Perf lazy: ", BSC.pack (show (endTime - startTime)), "\n"]
     IO.hClose h
   else
     return ()
