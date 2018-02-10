@@ -166,11 +166,11 @@ canvasWidget cs =
 
       let width' = ctx^.availWidthL - 2
       let height' = ctx^.availHeightL - 2
-      let cs' = plot $ cs { canvas = initCanvas width' height', width = width'*brailleWidth, height = height'*brailleHeight }
+      let c = plot $ cs { canvas = initCanvas width' height', width = width'*brailleWidth, height = height'*brailleHeight }
       
       render $ C.center $ withBorderStyle Border.unicodeBold
              $ B.borderWithLabel (str "Plot")
-             $ vBox (rows width' height' (V.toList $ canvas cs'))
+             $ vBox (rows width' height' (V.toList $ c))
   where
     rows w h c    = [strWrapWith wrapSettings $ map chr c]
 

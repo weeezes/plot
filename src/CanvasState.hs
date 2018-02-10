@@ -49,7 +49,7 @@ resize w h c =
 initCanvasState :: Int -> Int -> CanvasState
 initCanvasState w h = CanvasState { canvas = initCanvas w h, points = V.empty, width = w*brailleWidth, height = h*brailleHeight, xMin = 0.0, xMax = 0.0, yMin = 0.0, yMax = 0.0, plotType = PointPlot }
 
-plot :: CanvasState -> CanvasState
+plot :: CanvasState -> Canvas
 plot cs@CanvasState{..} =
   case plotType of
     PointPlot -> pointPlot cs
@@ -57,7 +57,7 @@ plot cs@CanvasState{..} =
     BarPlot -> barPlot cs
     HistogramPlot -> histogramPlot cs
 
-pointPlot :: CanvasState -> CanvasState
+pointPlot :: CanvasState -> Canvas
 pointPlot cs@CanvasState{..} =
   let
     dots (x,y) =
@@ -81,11 +81,11 @@ pointPlot cs@CanvasState{..} =
     canvas' = V.accum (\v (x,y) -> setBit v x y) canvas (V.toList ds)
   in
     if width > 0 && height > 0 then
-      cs { canvas = canvas' }
+      canvas'
     else
-      cs
+      canvas
 
-areaPlot :: CanvasState -> CanvasState
+areaPlot :: CanvasState -> Canvas
 areaPlot cs@CanvasState{..} =
   let
     bins = width `div` brailleWidth
@@ -130,11 +130,11 @@ areaPlot cs@CanvasState{..} =
     canvas' = V.update canvas $ bs
   in
     if width > 0 && height > 0 then
-      cs { canvas = canvas' }
+      canvas'
     else
-      cs
+      canvas
 
-barPlot :: CanvasState -> CanvasState
+barPlot :: CanvasState -> Canvas
 barPlot cs@CanvasState{..} =
   let
     bins = width `div` brailleWidth
@@ -179,11 +179,11 @@ barPlot cs@CanvasState{..} =
     canvas' = V.update canvas $ bs
   in
     if width > 0 && height > 0 then
-      cs { canvas = canvas' }
+      canvas'
     else
-      cs
+      canvas
 
-histogramPlot :: CanvasState -> CanvasState
+histogramPlot :: CanvasState -> Canvas
 histogramPlot cs@CanvasState{..} =
   let
     bins = width `div` brailleWidth
@@ -221,6 +221,6 @@ histogramPlot cs@CanvasState{..} =
     canvas' = V.update canvas $ bs
   in
     if width > 0 && height > 0 then
-      cs { canvas = canvas' }
+      canvas'
     else
-      cs
+      canvas
