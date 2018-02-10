@@ -31,8 +31,8 @@ steps c@CanvasState{..} ps =
     points' = V.concat [points, ps]
     xMin' = V.foldl (\acc (x,_) -> min acc x) xMin ps
     xMax' = V.foldl (\acc (x,_) -> max acc x) xMax ps
-    yMin' = V.foldl (\acc (_,y) -> min acc (prettyBounds y)) yMin ps
-    yMax' = V.foldl (\acc (_,y) -> max acc (prettyBounds y)) yMax ps
+    yMin' = V.foldl (\acc (_,y) -> min acc y) yMin ps
+    yMax' = V.foldl (\acc (_,y) -> max acc y) yMax ps
   in
     c
     { points = points'
@@ -60,10 +60,12 @@ plot cs@CanvasState{..} =
 pointPlot :: CanvasState -> Canvas
 pointPlot cs@CanvasState{..} =
   let
+    yMin' = prettyBounds yMin
+    yMax' = prettyBounds yMax
     dots (x,y) =
       let
         bx = round $ toBounds 0.0 (fromIntegral width) xMin xMax x :: Int
-        by = height - (round $ toBounds 0.0 (fromIntegral height) yMin yMax y) :: Int
+        by = height - (round $ toBounds 0.0 (fromIntegral height) yMin' yMax' y) :: Int
         (x',xDot)  = bx `quotRem` brailleWidth :: (Int,Int)
         (y',yDot)  = by `quotRem` brailleHeight :: (Int,Int)
         (x'', xDot') = if x' > (width `div` brailleWidth - 1) then
@@ -105,9 +107,11 @@ areaPlot cs@CanvasState{..} =
         else
           accvec
 
+    yMin' = prettyBounds yMin
+    yMax' = prettyBounds yMax
     bars (i,y) =
       let
-        by = height - (round $ toBounds 0.0 (fromIntegral height) yMin yMax y) :: Int
+        by = height - (round $ toBounds 0.0 (fromIntegral height) yMin' yMax' y) :: Int
         (y',yDot)  = by `quotRem` brailleHeight :: (Int,Int)
         (y'', yDot') = if y' > (height `div` brailleHeight - 1) then
                          (height `div` brailleHeight - 1, brailleHeight -1)
@@ -153,6 +157,7 @@ barPlot cs@CanvasState{..} =
             valuesToBins (V.snoc accvec (i,accval)) (acci+1) 0 vec
         else
           accvec
+
     bars yMax (i,y) =
       let
         by = height - (round $ toBounds 0.0 (fromIntegral height) yMin yMax y) :: Int
@@ -170,10 +175,10 @@ barPlot cs@CanvasState{..} =
       else if yDot == 3 then
         base
       else
-      foldl (\acc c -> setBit (setBit acc 0 c) 1 c) base [yDot..3]
+        foldl (\acc c -> setBit (setBit acc 0 c) 1 c) base [yDot..3]
 
     binValues = valuesToBins V.empty 0 (0 :: Double) points :: V.Vector (Int,Double)
-    yMax = snd $ V.maximumBy (\(i,y) (i',y') -> compare y y') binValues
+    yMax = prettyBounds $ snd $ V.maximumBy (\(i,y) (i',y') -> compare y y') binValues
     barIndexes i y yDot = V.fromList [ (i + x*(width `div` brailleWidth), if x == y then barChar yDot else full) | x <- [y..(height `div` brailleHeight)-1]]
     bs = V.concatMap (\(i, (y,yDot)) -> barIndexes i y yDot) $ V.map (bars yMax) binValues
     canvas' = V.update canvas $ bs
@@ -188,9 +193,9 @@ histogramPlot cs@CanvasState{..} =
   let
     bins = width `div` brailleWidth
 
-    bars yMax (i,y) =
+    bars yMin yMax (i,y) =
       let
-        by = height - (round $ toBounds 0.0 (fromIntegral height) yMin yMax y) :: Int
+        by = height - (round $ toBounds 0.0 (fromIntegral height) 0 yMax y) :: Int
         (y',yDot)  = by `quotRem` brailleHeight :: (Int,Int)
         (y'', yDot') = if y' > (height `div` brailleHeight - 1) then
                          (height `div` brailleHeight - 1, brailleHeight -1)
@@ -209,15 +214,16 @@ histogramPlot cs@CanvasState{..} =
 
     emptyBins = V.replicate bins 0 :: V.Vector Int
 
-    binSize = yMax / (fromIntegral bins)
+    binSize = (prettyBounds yMax) / (fromIntegral bins)
     flatBins = V.map (\(_,y) -> (floor $ y / binSize, 1)) points :: V.Vector (Int, Int)
     binValues = V.accumulate (\i i' -> i+1) emptyBins flatBins :: V.Vector Int
+
     yMax' = prettyBounds $ fromIntegral $ V.maximum binValues
+    yMin' = prettyBounds yMin
 
     binValues' = V.imap (\i v -> (i,fromIntegral v :: Double)) binValues
-
     barIndexes i y yDot = V.fromList [ (i + x*(width `div` brailleWidth), if x == y then barChar yDot else full) | x <- [y..(height `div` brailleHeight)-1]]
-    bs = V.concatMap (\(i, (y,yDot)) -> barIndexes i y yDot) $ V.map (bars yMax') binValues'
+    bs = V.concatMap (\(i, (y,yDot)) -> barIndexes i y yDot) $ V.map (bars yMin' yMax') binValues'
     canvas' = V.update canvas $ bs
   in
     if width > 0 && height > 0 then
