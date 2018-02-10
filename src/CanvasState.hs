@@ -195,7 +195,7 @@ histogramPlot cs@CanvasState{..} =
 
     bars yMin yMax (i,y) =
       let
-        by = height - (round $ toBounds 0.0 (fromIntegral height) 0 yMax y) :: Int
+        by = height - (round $ toBounds 0.0 (fromIntegral height) yMin yMax y) :: Int
         (y',yDot)  = by `quotRem` brailleHeight :: (Int,Int)
         (y'', yDot') = if y' > (height `div` brailleHeight - 1) then
                          (height `div` brailleHeight - 1, brailleHeight -1)
@@ -212,17 +212,17 @@ histogramPlot cs@CanvasState{..} =
       else
       foldl (\acc c -> setBit (setBit acc 0 c) 1 c) base [yDot..3]
 
-    emptyBins = V.replicate bins 0 :: V.Vector Int
+    barIndexes i y yDot = V.fromList [ (i + x*(width `div` brailleWidth), if x == y then barChar yDot else full) | x <- [y..(height `div` brailleHeight)-1]]
 
-    binSize = (prettyBounds yMax) / (fromIntegral bins)
-    flatBins = V.map (\(_,y) -> (floor $ y / binSize, 1)) points :: V.Vector (Int, Int)
+    emptyBins = V.replicate bins 0 :: V.Vector Int
+    binSize = (prettyBounds yMax - prettyBounds yMin) / (fromIntegral bins)
+    flatBins = V.map (\(_,y) -> (floor $ (y - prettyBounds yMin) / binSize, 1)) points :: V.Vector (Int, Int)
     binValues = V.accumulate (\i i' -> i+1) emptyBins flatBins :: V.Vector Int
 
     yMax' = prettyBounds $ fromIntegral $ V.maximum binValues
     yMin' = prettyBounds yMin
 
     binValues' = V.imap (\i v -> (i,fromIntegral v :: Double)) binValues
-    barIndexes i y yDot = V.fromList [ (i + x*(width `div` brailleWidth), if x == y then barChar yDot else full) | x <- [y..(height `div` brailleHeight)-1]]
     bs = V.concatMap (\(i, (y,yDot)) -> barIndexes i y yDot) $ V.map (bars yMin' yMax') binValues'
     canvas' = V.update canvas $ bs
   in
