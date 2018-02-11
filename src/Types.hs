@@ -15,8 +15,8 @@ data UiEvent = Redraw (V.Vector Point) | Die
 data PlotType = PointPlot | AreaPlot | BarPlot | HistogramPlot
 
 data Settings = Settings
-  { inputStream :: String
-  , quitAfterDone :: Bool
+  { quitAfterDone :: Bool
   , slurp :: Bool
+  , inputFd :: Maybe String
   }
 
