@@ -24,8 +24,9 @@ stack install
 # Usage
 
 ```
-plot -- <(set -e; for i in {0..100}; do echo "$((-30 + $RANDOM%60))"; done)
-plot -- data.txt
+set -e; for i in {0..100}; do echo "$((-30 + $RANDOM%60))"; done | plot
+plot -f <(set -e; for i in {0..100}; do echo "$((-30 + $RANDOM%60))"; done)
+plot -f data.txt
 ```
 Press Q to quit.
 
