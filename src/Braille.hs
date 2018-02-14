@@ -21,11 +21,7 @@ setBit c x y =
   c .|. dots !! (y*2+x)
 
 initCanvas :: Int -> Int -> Canvas
-initCanvas w h =
-  let
-    canvas = V.replicate (w*h) base
-  in
-    canvas
+initCanvas w h = V.replicate (w*h) base
 
 toBounds :: Double -> Double -> Double -> Double -> Double -> Double
 toBounds min max min' max' v =
