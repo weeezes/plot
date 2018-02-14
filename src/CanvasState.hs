@@ -26,28 +26,35 @@ data CanvasState = CanvasState
   }
 
 steps :: CanvasState -> V.Vector Point -> CanvasState
-steps c@CanvasState{..} ps =
-  let
-    points' = V.concat [points, ps]
-    xMin' = V.foldl (\acc (x,_) -> min acc x) xMin ps
-    xMax' = V.foldl (\acc (x,_) -> max acc x) xMax ps
-    yMin' = V.foldl (\acc (_,y) -> min acc y) yMin ps
-    yMax' = V.foldl (\acc (_,y) -> max acc y) yMax ps
-  in
-    c
-    { points = points'
-    , xMin = xMin'
-    , xMax = xMax'
-    , yMin = yMin'
-    , yMax = yMax'
+steps c@CanvasState{..} ps = c
+    { points = points V.++ ps
+    , xMin = min xMin $ V.minimum xs
+    , xMax = max xMax $ V.maximum xs
+    , yMin = min yMin $ V.minimum ys
+    , yMax = max yMax $ V.maximum ys
     }
+  where
+    (xs, ys) = V.unzip ps
 
 resize :: Int -> Int -> CanvasState -> CanvasState
-resize w h c =
-  c { canvas = initCanvas w h, width = w*brailleWidth, height = h*brailleHeight }
+resize w h c = c
+  { canvas = initCanvas w h
+  , width = w * brailleWidth
+  , height = h * brailleHeight
+  }
 
 initCanvasState :: Int -> Int -> CanvasState
-initCanvasState w h = CanvasState { canvas = initCanvas w h, points = V.empty, width = w*brailleWidth, height = h*brailleHeight, xMin = 0.0, xMax = 0.0, yMin = 0.0, yMax = 0.0, plotType = PointPlot }
+initCanvasState w h = CanvasState
+  { canvas = initCanvas w h
+  , points = V.empty
+  , width = w*brailleWidth
+  , height = h*brailleHeight
+  , xMin = 0.0
+  , xMax = 0.0
+  , yMin = 0.0
+  , yMax = 0.0
+  , plotType = PointPlot
+  }
 
 plot :: CanvasState -> Canvas
 plot cs@CanvasState{..} =
