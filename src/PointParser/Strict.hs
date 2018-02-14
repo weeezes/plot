@@ -19,23 +19,21 @@ import Data.Time.Clock
 
 import Control.Concurrent.STM.TQueue
 import Control.Monad.STM (STM(..), atomically)
-import Control.Monad (foldM)
+import Control.Monad (foldM, when, void)
 
 import Types
 import PointParser.Parser
 
 loop queue h = do
   isOpen <- IO.hIsOpen h
-  if isOpen then do
+  when isOpen $ do
     available <- BS.hGetContents h
     startTime <- getPOSIXTime
 
     let r = A.parseOnly (A.many1 parsePoint) available
     case r of
       Left e -> print e
-      Right r -> foldPoints queue 0 r >> return ()
+      Right r -> void $ foldPoints queue 0 r
 
     endTime <- getPOSIXTime
     IO.hClose h
-  else
-    return ()
