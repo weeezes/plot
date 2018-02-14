@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Ui 
   ( runUi
@@ -26,7 +27,7 @@ import qualified Data.Sequence as Seq
 import Data.Foldable (toList)
 import Data.Time.Clock.POSIX (getPOSIXTime)
 
-import Control.Monad (forever, void, foldM)
+import Control.Monad (forever, void, foldM, when)
 import Control.Monad.IO.Class (liftIO)
 import Control.Concurrent (threadDelay, forkIO, ThreadId, killThread)
 
@@ -69,13 +70,9 @@ redraw h shouldQuitAfterDone chan queue = do
     else do
       isClosed <- IO.hIsClosed h
       noData <- atomically $ isEmptyTQueue queue
-      if shouldQuitAfterDone && noData && isClosed then do
+      when (shouldQuitAfterDone && noData && isClosed) $
         writeBChan chan Die
-      else
-        return ()
-      return ()
     threadDelay 100000
-  return ()
 
 fileInput :: Options.Parser (Maybe String)
 fileInput = Options.optional $ Options.strOption
@@ -150,31 +147,37 @@ app = App { appDraw = drawUI
           , appAttrMap = const theMap
           }
 
-handleEvent :: CanvasState -> BrickEvent Name UiEvent -> EventM Name (Next CanvasState )
-handleEvent c (AppEvent (Redraw ps))                = continue $ steps c ps
-handleEvent c (AppEvent Die)                        = halt c
-handleEvent c (VtyEvent (Vty.EvKey (Vty.KChar 'a') [])) = continue $ c { plotType = AreaPlot }
-handleEvent c (VtyEvent (Vty.EvKey (Vty.KChar 'b') [])) = continue $ c { plotType = BarPlot }
-handleEvent c (VtyEvent (Vty.EvKey (Vty.KChar 'h') [])) = continue $ c { plotType = HistogramPlot }
-handleEvent c (VtyEvent (Vty.EvKey (Vty.KChar 'p') [])) = continue $ c { plotType = PointPlot }
-handleEvent c (VtyEvent (Vty.EvKey (Vty.KChar 'q') [])) = halt c
-handleEvent c (VtyEvent (Vty.EvKey Vty.KEsc []))        = halt c
-handleEvent c (VtyEvent (Vty.EvResize w h))           = continue $ resize (w-2) (h-2) c
-handleEvent c _                                     = continue c
+handleEvent :: CanvasState -> BrickEvent Name UiEvent -> EventM Name (Next CanvasState)
+handleEvent c = \case
+  AppEvent (Redraw ps)                    -> continue $ steps c ps
+  AppEvent Die                            -> halt c
+  VtyEvent (Vty.EvKey (Vty.KChar 'a') []) -> continue $ c { plotType = AreaPlot }
+  VtyEvent (Vty.EvKey (Vty.KChar 'b') []) -> continue $ c { plotType = BarPlot }
+  VtyEvent (Vty.EvKey (Vty.KChar 'h') []) -> continue $ c { plotType = HistogramPlot }
+  VtyEvent (Vty.EvKey (Vty.KChar 'p') []) -> continue $ c { plotType = PointPlot }
+  VtyEvent (Vty.EvKey (Vty.KChar 'q') []) -> halt c
+  VtyEvent (Vty.EvKey Vty.KEsc [])        -> halt c
+  VtyEvent (Vty.EvResize w h)             -> continue $ resize (w-2) (h-2) c
+  _                                       -> continue c
 
 drawUI :: CanvasState -> [Widget Name]
 drawUI c =
-  [
-    hBox
-      [
-        vBox []
-      , vBox [canvasWidget c, stats c ]
-      ]
+  [ hBox [ vBox []
+         , vBox [ canvasWidget c
+                , stats c
+                ]
+         ]
   ]
 
-stats c = padLeftRight 1 (str $ "Width: " ++ (show $ width c)) <+> padLeftRight 1 (str $ "Height: " ++ (show $ height c)) <+> padLeftRight 1 (str $ "X Min: " ++ (show $ xMin c)) <+> padLeftRight 1 (str $ "X Max: " ++ (show $ xMax c)) <+> padLeftRight 1 (str $ "Y Min: " ++ (show $ yMin c)) <+> padLeftRight 1 (str $ "Y Max: " ++ (show $ yMax c))
+stats c = padLeftRight 1 (str $ "Width: " ++ (show $ width c))
+      <+> padLeftRight 1 (str $ "Height: " ++ (show $ height c))
+      <+> padLeftRight 1 (str $ "X Min: " ++ (show $ xMin c))
+      <+> padLeftRight 1 (str $ "X Max: " ++ (show $ xMax c))
+      <+> padLeftRight 1 (str $ "Y Min: " ++ (show $ yMin c))
+      <+> padLeftRight 1 (str $ "Y Max: " ++ (show $ yMax c))
 
 wrapSettings = WrapSettings { preserveIndentation = False, breakLongWords = True }
+
 canvasWidget :: CanvasState -> Widget n
 canvasWidget cs =
   Widget Greedy Greedy $ do
@@ -182,13 +185,16 @@ canvasWidget cs =
 
       let width' = ctx^.availWidthL - 2
       let height' = ctx^.availHeightL - 2
-      let c = plot $ cs { canvas = initCanvas width' height', width = width'*brailleWidth, height = height'*brailleHeight }
+      let c = plot $ cs { canvas = initCanvas width' height'
+                        , width = width'*brailleWidth
+                        , height = height'*brailleHeight
+                        }
       
       render $ C.center $ withBorderStyle Border.unicodeBold
              $ B.borderWithLabel (str "Plot")
              $ vBox (rows width' height' (V.toList $ c))
   where
-    rows w h c    = [strWrapWith wrapSettings $ map chr c]
+    rows w h c = [strWrapWith wrapSettings $ map chr c]
 
 theMap :: AttrMap
 theMap = attrMap Vty.defAttr []
