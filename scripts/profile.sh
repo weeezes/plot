@@ -2,4 +2,4 @@
 
 stack build --profile --executable-profiling
 bin=$(find .stack-work/install -name "plot" | xargs ls -1t | head -n 1)
-time $bin -k -s +RTS -p -f <(set -e; for i in {0..1000000}; do echo "${i}   $(($RANDOM%60))"; done)
+time $bin -k -s -f <(set -e; for i in {0..1000000}; do echo "${i}   $(($RANDOM%60))"; done) +RTS -p
