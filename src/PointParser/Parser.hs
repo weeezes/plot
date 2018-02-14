@@ -43,6 +43,6 @@ parsedPointToPoint _ (ParsedPoint p) = p
 parsedPointToPoint x (ParsedSingle y) = (fromIntegral $ x,y)
 
 foldPoints queue startIndex ps = do
-  let ps' = zipWith (\i v -> parsedPointToPoint i v) [startIndex..] ps
+  let ps' = zipWith parsedPointToPoint [startIndex..] ps
   atomically $ writeTQueue queue ps'
   return $ startIndex + (length ps)
