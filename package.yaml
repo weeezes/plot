@@ -61,3 +61,4 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - plot
+    - HTF

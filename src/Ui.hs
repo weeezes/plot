@@ -103,7 +103,7 @@ handleShutdown vty tids h = do
 runUi :: IO()
 runUi = do
   chan <- newBChan 1
-  let c = initCanvasState 50 20 :: CanvasState
+  let c = initCanvasState
   let w = width c
   let h = height c
   settings <- Options.execParser settingsParserInfo
@@ -185,11 +185,14 @@ canvasWidget cs =
 
       let width' = ctx^.availWidthL - 2
       let height' = ctx^.availHeightL - 2
-      let c = plot $ cs { canvas = initCanvas width' height'
-                        , width = width'*brailleWidth
-                        , height = height'*brailleHeight
-                        }
-      
+      let cs' = case initCanvas width' height' of
+                Right canvas ->
+                  cs { canvas = canvas
+                     , width = width'*brailleWidth
+                     , height = height'*brailleHeight
+                     }
+                Left _ -> cs
+      let c = plot $ cs'
       render $ C.center $ withBorderStyle Border.unicodeBold
              $ B.borderWithLabel (str "Plot")
              $ vBox (rows width' height' (V.toList $ c))

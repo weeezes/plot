@@ -37,24 +37,34 @@ steps c@CanvasState{..} ps = c
     (xs, ys) = V.unzip ps
 
 resize :: Int -> Int -> CanvasState -> CanvasState
-resize w h c = c
-  { canvas = initCanvas w h
-  , width = w * brailleWidth
-  , height = h * brailleHeight
-  }
+resize w h c =
+  case initCanvas w h of
+    Left e -> c
+    Right canvas -> c
+      { canvas = canvas
+      , width = w * brailleWidth
+      , height = h * brailleHeight
+      }
 
-initCanvasState :: Int -> Int -> CanvasState
-initCanvasState w h = CanvasState
-  { canvas = initCanvas w h
-  , points = V.empty
-  , width = w*brailleWidth
-  , height = h*brailleHeight
-  , xMin = 0.0
-  , xMax = 0.0
-  , yMin = 0.0
-  , yMax = 0.0
-  , plotType = PointPlot
-  }
+initCanvasState :: CanvasState
+initCanvasState =
+  case initCanvas w h of
+    Right canvas ->
+      CanvasState
+        { canvas = canvas
+        , points = V.empty
+        , width = w*brailleWidth
+        , height = h*brailleHeight
+        , xMin = 0.0
+        , xMax = 0.0
+        , yMin = 0.0
+        , yMax = 0.0
+        , plotType = PointPlot
+        }
+    Left e -> error "This never happens"
+  where
+    w = 5
+    h = 5
 
 plot :: CanvasState -> Canvas
 plot cs@CanvasState{..} =
