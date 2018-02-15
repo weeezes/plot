@@ -6,7 +6,7 @@ A simple tool for plotting data in the terminal
 
 ---
 
-# Building
+## Building
 
 *This doesn't work in Windows.*
 
@@ -19,9 +19,21 @@ stack build
 stack install
 ```
 
+## Testing
+
+```
+stack test
+```
+
+## Benchmarking
+
+```
+stack bench --ba "--output bench.html"
+```
+
 ---
 
-# Usage
+## Usage
 
 ```
 set -e; for i in {0..100}; do echo "$((-30 + $RANDOM%60))"; done | plot
