@@ -29,6 +29,7 @@ dependencies:
 - vector
 - vty
 - word-wrap
+- text
 
 library:
   source-dirs: src

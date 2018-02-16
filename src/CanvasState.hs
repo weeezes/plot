@@ -23,6 +23,7 @@ data CanvasState = CanvasState
   , yMin :: Double
   , yMax :: Double
   , plotType :: PlotType
+  , yTicks :: [Double]
   }
 
 steps :: CanvasState -> V.Vector Point -> CanvasState
@@ -60,13 +61,21 @@ initCanvasState =
         , yMin = 0.0
         , yMax = 0.0
         , plotType = PointPlot
+        , yTicks = []
         }
     Left e -> error "This never happens"
   where
     w = 5
     h = 5
 
-plot :: CanvasState -> Canvas
+generateYTicks yMin yMax height =
+  let
+    tickSpacing = (yMax-yMin)/(fromIntegral height)
+    tickIndices = [0..height + 1]
+  in
+    reverse $ map (\x -> yMin + (fromIntegral x)*tickSpacing) tickIndices
+
+plot :: CanvasState -> CanvasState
 plot cs@CanvasState{..} =
   case plotType of
     PointPlot -> pointPlot cs
@@ -74,7 +83,7 @@ plot cs@CanvasState{..} =
     BarPlot -> barPlot cs
     HistogramPlot -> histogramPlot cs
 
-pointPlot :: CanvasState -> Canvas
+pointPlot :: CanvasState -> CanvasState
 pointPlot cs@CanvasState{..} =
   let
     yMin' = prettyBounds yMin
@@ -100,11 +109,11 @@ pointPlot cs@CanvasState{..} =
     canvas' = V.accum (\v (x,y) -> setBit v x y) canvas (V.toList ds)
   in
     if width > 0 && height > 0 then
-      canvas'
+      cs { canvas = canvas', yTicks = generateYTicks yMin' yMax' (height `div` brailleHeight) }
     else
-      canvas
+      cs
 
-areaPlot :: CanvasState -> Canvas
+areaPlot :: CanvasState -> CanvasState
 areaPlot cs@CanvasState{..} =
   let
     bins = width `div` brailleWidth
@@ -151,11 +160,11 @@ areaPlot cs@CanvasState{..} =
     canvas' = V.update canvas $ bs
   in
     if width > 0 && height > 0 then
-      canvas'
+      cs { canvas = canvas', yTicks = generateYTicks yMin' yMax' (height `div` brailleHeight) }
     else
-      canvas
+      cs
 
-barPlot :: CanvasState -> Canvas
+barPlot :: CanvasState -> CanvasState
 barPlot cs@CanvasState{..} =
   let
     bins = width `div` brailleWidth
@@ -201,11 +210,11 @@ barPlot cs@CanvasState{..} =
     canvas' = V.update canvas $ bs
   in
     if width > 0 && height > 0 then
-      canvas'
+      cs { canvas = canvas', yTicks = generateYTicks 0 yMax (height `div` brailleHeight) }
     else
-      canvas
+      cs
 
-histogramPlot :: CanvasState -> Canvas
+histogramPlot :: CanvasState -> CanvasState
 histogramPlot cs@CanvasState{..} =
   let
     bins = width `div` brailleWidth
@@ -244,6 +253,6 @@ histogramPlot cs@CanvasState{..} =
     canvas' = V.update canvas $ bs
   in
     if width > 0 && height > 0 then
-      canvas'
+      cs { canvas = canvas', yTicks = generateYTicks yMin' yMax' (height `div` brailleHeight) }
     else
-      canvas
+      cs
