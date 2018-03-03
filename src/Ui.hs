@@ -157,6 +157,7 @@ handleEvent c = \case
   VtyEvent (Vty.EvKey (Vty.KChar 'b') []) -> continue $ c { plotType = BarPlot }
   VtyEvent (Vty.EvKey (Vty.KChar 'h') []) -> continue $ c { plotType = HistogramPlot }
   VtyEvent (Vty.EvKey (Vty.KChar 'p') []) -> continue $ c { plotType = PointPlot }
+  VtyEvent (Vty.EvKey (Vty.KChar 't') []) -> continue $ c { showYTicks = not (showYTicks c) }
   VtyEvent (Vty.EvKey (Vty.KChar 'q') []) -> halt c
   VtyEvent (Vty.EvKey Vty.KEsc [])        -> halt c
   VtyEvent (Vty.EvResize w h)             -> continue $ resize (w-2) (h-2) c
@@ -193,7 +194,11 @@ canvasWidget cs =
   Widget Greedy Greedy $ do
       ctx <- getContext
 
-      let width' = ctx^.availWidthL - (2+8)
+      let width' = if showYTicks cs then
+                     ctx^.availWidthL - (2+8)
+                   else
+                     ctx^.availWidthL - 2
+
       let height' = ctx^.availHeightL - 2
       let cs' = case initCanvas width' height' of
                 Right canvas ->
@@ -213,11 +218,19 @@ canvasWidget cs =
                      $ map (\v -> if v > 999 then printf "%.2e" v else printf "%.2f" v) (yTicks cs')
 
       let c = canvas cs'
-      render $ values
-             <+> (cropLeftBy 1 $ C.center
-             $ withBorderStyle Border.unicodeBold
-             $ B.borderWithLabel (str "Plot")
-             $ (strWrapWith wrapSettings $ map chr (V.toList c)))
+
+      if showYTicks cs then
+        render $ values
+               <+> (cropLeftBy 1 $ C.center
+               $ withBorderStyle Border.unicodeBold
+               $ B.borderWithLabel (str "Plot")
+               $ (strWrapWith wrapSettings $ map chr (V.toList c)))
+      else
+        render $ C.center
+               $ withBorderStyle Border.unicodeBold
+               $ B.borderWithLabel (str "Plot")
+               $ (strWrapWith wrapSettings $ map chr (V.toList c))
+
   where
     rows w h c = [strWrapWith wrapSettings $ map chr c]
 

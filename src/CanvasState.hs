@@ -24,6 +24,7 @@ data CanvasState = CanvasState
   , yMax :: Double
   , plotType :: PlotType
   , yTicks :: [Double]
+  , showYTicks :: Bool
   }
 
 steps :: CanvasState -> V.Vector Point -> CanvasState
@@ -62,6 +63,7 @@ initCanvasState =
         , yMax = 0.0
         , plotType = PointPlot
         , yTicks = []
+        , showYTicks = False
         }
     Left e -> error "This never happens"
   where
