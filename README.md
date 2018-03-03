@@ -41,6 +41,7 @@ plot -f <(set -e; for i in {0..100}; do echo "$((-30 + $RANDOM%60))"; done)
 plot -f data.txt
 ```
 Press Q to quit.
+
 Press T to toggle Y-axis ticks
 
 You can switch between modes with:
