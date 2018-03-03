@@ -7,12 +7,13 @@ module Ui
 
 import Brick
 import Brick.BChan (newBChan, writeBChan)
-import Brick.Types (Size)
+import Brick.Types (Size,Location(..))
 import qualified Brick.Widgets.Border as B
 import qualified Brick.Widgets.Border.Style as Border
 import qualified Brick.Widgets.Center as C
 
 import Text.Wrap (WrapSettings(..))
+import Text.Printf (printf)
 import Lens.Micro ((^.))
 
 import qualified Graphics.Vty as Vty
@@ -26,6 +27,7 @@ import qualified Data.Vector.Unboxed as V
 import qualified Data.Sequence as Seq
 import Data.Foldable (toList)
 import Data.Time.Clock.POSIX (getPOSIXTime)
+import qualified Data.Text as T
 
 import Control.Monad (forever, void, foldM, when)
 import Control.Monad.IO.Class (liftIO)
@@ -155,6 +157,7 @@ handleEvent c = \case
   VtyEvent (Vty.EvKey (Vty.KChar 'b') []) -> continue $ c { plotType = BarPlot }
   VtyEvent (Vty.EvKey (Vty.KChar 'h') []) -> continue $ c { plotType = HistogramPlot }
   VtyEvent (Vty.EvKey (Vty.KChar 'p') []) -> continue $ c { plotType = PointPlot }
+  VtyEvent (Vty.EvKey (Vty.KChar 't') []) -> continue $ c { showYTicks = not (showYTicks c) }
   VtyEvent (Vty.EvKey (Vty.KChar 'q') []) -> halt c
   VtyEvent (Vty.EvKey Vty.KEsc [])        -> halt c
   VtyEvent (Vty.EvResize w h)             -> continue $ resize (w-2) (h-2) c
@@ -178,24 +181,56 @@ stats c = padLeftRight 1 (str $ "Width: " ++ (show $ width c))
 
 wrapSettings = WrapSettings { preserveIndentation = False, breakLongWords = True }
 
+addTicks ps =
+  let
+    h = head ps
+    l = last ps
+    m = drop 1 $ take (length ps - 1) ps
+  in
+    [h ++ [chr (0x2533 :: Int)]] ++ (map (\m' -> m' ++ [chr (0x252B :: Int)]) m) ++ [l ++ [chr (0x253B :: Int)]]
+
 canvasWidget :: CanvasState -> Widget n
 canvasWidget cs =
   Widget Greedy Greedy $ do
       ctx <- getContext
 
-      let width' = ctx^.availWidthL - 2
+      let width' = if showYTicks cs then
+                     ctx^.availWidthL - (2+8)
+                   else
+                     ctx^.availWidthL - 2
+
       let height' = ctx^.availHeightL - 2
       let cs' = case initCanvas width' height' of
                 Right canvas ->
-                  cs { canvas = canvas
-                     , width = width'*brailleWidth
-                     , height = height'*brailleHeight
-                     }
-                Left _ -> cs
-      let c = plot $ cs'
-      render $ C.center $ withBorderStyle Border.unicodeBold
-             $ B.borderWithLabel (str "Plot")
-             $ vBox (rows width' height' (V.toList $ c))
+                  plot $ cs { canvas = canvas
+                            , width = width'*brailleWidth
+                            , height = height'*brailleHeight
+                            }
+                Left _ -> plot cs
+
+      let values = if (length $ yTicks cs') <= height' then
+                     emptyWidget
+                   else
+                     vBox
+                     $ map str
+                     $ addTicks
+                     $ map (\v -> (T.unpack . T.justifyLeft 7 ' ' . T.pack $ v))
+                     $ map (\v -> if v > 999 then printf "%.2e" v else printf "%.2f" v) (yTicks cs')
+
+      let c = canvas cs'
+
+      if showYTicks cs then
+        render $ values
+               <+> (cropLeftBy 1 $ C.center
+               $ withBorderStyle Border.unicodeBold
+               $ B.borderWithLabel (str "Plot")
+               $ (strWrapWith wrapSettings $ map chr (V.toList c)))
+      else
+        render $ C.center
+               $ withBorderStyle Border.unicodeBold
+               $ B.borderWithLabel (str "Plot")
+               $ (strWrapWith wrapSettings $ map chr (V.toList c))
+
   where
     rows w h c = [strWrapWith wrapSettings $ map chr c]
 
