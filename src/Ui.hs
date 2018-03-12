@@ -63,8 +63,8 @@ untilNoneTimeout startTime acc queue = do
       Nothing -> untilNoneTimeout startTime acc queue
 
 redraw h shouldQuitAfterDone chan queue = do
-  atomically $ peekTQueue queue -- Wait for first value before jumping into forever
   forever $ do
+    atomically $ peekTQueue queue -- Wait for even one value before trying to flush the queue for drawing
     startTime <- getPOSIXTime
     ps <- untilNoneTimeout startTime Seq.empty queue
     if V.length ps > 0 then do
@@ -74,7 +74,6 @@ redraw h shouldQuitAfterDone chan queue = do
       noData <- atomically $ isEmptyTQueue queue
       when (shouldQuitAfterDone && noData && isClosed) $
         writeBChan chan Die
-    threadDelay 100000
 
 fileInput :: Options.Parser (Maybe String)
 fileInput = Options.optional $ Options.strOption
