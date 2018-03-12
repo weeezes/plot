@@ -20,28 +20,28 @@ canvasState w h plotType pointCount =
 
 benchmarks =
   [ bgroup "CanvasState_pointPlot" $
-      [ bench "1000"    $ whnf (plot . canvasState 100 100 PointPlot) 1000
-      , bench "10000"   $ whnf (plot . canvasState 100 100 PointPlot) 10000
-      , bench "100000"  $ whnf (plot . canvasState 100 100 PointPlot) 100000
-      , bench "1000000" $ whnf (plot . canvasState 100 100 PointPlot) 1000000
+      [ bench "1000"    $ nf (canvas . plot . canvasState 100 100 PointPlot) 1000
+      , bench "10000"   $ nf (canvas . plot . canvasState 100 100 PointPlot) 10000
+      , bench "100000"  $ nf (canvas . plot . canvasState 100 100 PointPlot) 100000
+      , bench "1000000" $ nf (canvas . plot . canvasState 100 100 PointPlot) 1000000
       ]
   , bgroup "CanvasState_areaPlot" $
-      [ bench "1000"    $ whnf (plot . canvasState 100 100 AreaPlot) 1000
-      , bench "10000"   $ whnf (plot . canvasState 100 100 AreaPlot) 10000
-      , bench "100000"  $ whnf (plot . canvasState 100 100 AreaPlot) 100000
-      , bench "1000000" $ whnf (plot . canvasState 100 100 AreaPlot) 1000000
+      [ bench "1000"    $ nf (canvas . plot . canvasState 100 100 AreaPlot) 1000
+      , bench "10000"   $ nf (canvas . plot . canvasState 100 100 AreaPlot) 10000
+      , bench "100000"  $ nf (canvas . plot . canvasState 100 100 AreaPlot) 100000
+      , bench "1000000" $ nf (canvas . plot . canvasState 100 100 AreaPlot) 1000000
       ]
   , bgroup "CanvasState_barPlot" $
-      [ bench "1000"    $ whnf (plot . canvasState 100 100 BarPlot) 1000
-      , bench "10000"   $ whnf (plot . canvasState 100 100 BarPlot) 10000
-      , bench "100000"  $ whnf (plot . canvasState 100 100 BarPlot) 100000
-      , bench "1000000" $ whnf (plot . canvasState 100 100 BarPlot) 1000000
+      [ bench "1000"    $ nf (canvas . plot . canvasState 100 100 BarPlot) 1000
+      , bench "10000"   $ nf (canvas . plot . canvasState 100 100 BarPlot) 10000
+      , bench "100000"  $ nf (canvas . plot . canvasState 100 100 BarPlot) 100000
+      , bench "1000000" $ nf (canvas . plot . canvasState 100 100 BarPlot) 1000000
       ]
   , bgroup "CanvasState_histogramPlot" $
-      [ bench "1000"    $ whnf (plot . canvasState 100 100 HistogramPlot) 1000
-      , bench "10000"   $ whnf (plot . canvasState 100 100 HistogramPlot) 10000
-      , bench "100000"  $ whnf (plot . canvasState 100 100 HistogramPlot) 100000
-      , bench "1000000" $ whnf (plot . canvasState 100 100 HistogramPlot) 1000000
+      [ bench "1000"    $ nf (canvas . plot . canvasState 100 100 HistogramPlot) 1000
+      , bench "10000"   $ nf (canvas . plot . canvasState 100 100 HistogramPlot) 10000
+      , bench "100000"  $ nf (canvas . plot . canvasState 100 100 HistogramPlot) 100000
+      , bench "1000000" $ nf (canvas . plot . canvasState 100 100 HistogramPlot) 1000000
       ]
 
   ]
