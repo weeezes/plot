@@ -1,5 +1,5 @@
 name:                plot
-version:             0.1.0.0
+version:             0.2.3.0
 github:              "weeezes/plot"
 license:             BSD3
 author:              "Vesa Hagström"
@@ -29,6 +29,7 @@ dependencies:
 - vector
 - vty
 - word-wrap
+- text
 
 library:
   source-dirs: src
@@ -61,3 +62,16 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - plot
+    - HTF
+
+benchmarks:
+  plot-bench:
+    main:                Bench.hs
+    source-dirs:         bench
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - plot
+    - criterion

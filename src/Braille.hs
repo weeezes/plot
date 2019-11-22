@@ -1,5 +1,6 @@
 module Braille where
 
+import Data.Either
 import Data.Char
 import Data.Bits (xor, (.|.))
 import qualified Data.Vector.Unboxed as V
@@ -20,12 +21,10 @@ setBit :: Int -> Int -> Int -> Int
 setBit c x y =
   c .|. dots !! (y*2+x)
 
-initCanvas :: Int -> Int -> Canvas
-initCanvas w h =
-  let
-    canvas = V.replicate (w*h) base
-  in
-    canvas
+initCanvas :: Int -> Int -> Either String Canvas
+initCanvas w h
+  | w > 0 && h > 0 = Right $ V.replicate (w*h) base
+  | otherwise = Left "Width and height need to be positive"
 
 toBounds :: Double -> Double -> Double -> Double -> Double -> Double
 toBounds min max min' max' v =
@@ -33,11 +32,17 @@ toBounds min max min' max' v =
     l  = max - min
     l' = max' - min'
     r  = l / l'
+    v' = if isInfinite r || isNaN r then
+           min + (v - min')
+         else
+           min + r * (v - min')
   in
-    if isInfinite r || isNaN r then
-      v - min'
+    if v' > max then
+      max
+    else if v' < min then
+      min
     else
-      r * (v - min')
+      v'
 
 prettyBounds :: Double -> Double
 prettyBounds v =
@@ -52,7 +57,7 @@ prettyBounds v =
     m' = t' * (ceiling $ (v' - fromIntegral m) / fromIntegral t') -- 3560-3000 => 560/100 => 5.6 => 6
   in
     if v' < 1 then
-      v
+      1.1 * v
     else if v' > 2 && v' < 10 then
       s * 10
     else

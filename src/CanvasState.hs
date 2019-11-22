@@ -23,33 +23,61 @@ data CanvasState = CanvasState
   , yMin :: Double
   , yMax :: Double
   , plotType :: PlotType
+  , yTicks :: [Double]
+  , showYTicks :: Bool
   }
 
 steps :: CanvasState -> V.Vector Point -> CanvasState
-steps c@CanvasState{..} ps =
-  let
-    points' = V.concat [points, ps]
-    xMin' = V.foldl (\acc (x,_) -> min acc x) xMin ps
-    xMax' = V.foldl (\acc (x,_) -> max acc x) xMax ps
-    yMin' = V.foldl (\acc (_,y) -> min acc y) yMin ps
-    yMax' = V.foldl (\acc (_,y) -> max acc y) yMax ps
-  in
-    c
-    { points = points'
-    , xMin = xMin'
-    , xMax = xMax'
-    , yMin = yMin'
-    , yMax = yMax'
+steps c@CanvasState{..} ps = c
+    { points = points V.++ ps
+    , xMin = min xMin $ V.minimum xs
+    , xMax = max xMax $ V.maximum xs
+    , yMin = min yMin $ V.minimum ys
+    , yMax = max yMax $ V.maximum ys
     }
+  where
+    (xs, ys) = V.unzip ps
 
 resize :: Int -> Int -> CanvasState -> CanvasState
 resize w h c =
-  c { canvas = initCanvas w h, width = w*brailleWidth, height = h*brailleHeight }
+  case initCanvas w h of
+    Left e -> c
+    Right canvas -> c
+      { canvas = canvas
+      , width = w * brailleWidth
+      , height = h * brailleHeight
+      }
 
-initCanvasState :: Int -> Int -> CanvasState
-initCanvasState w h = CanvasState { canvas = initCanvas w h, points = V.empty, width = w*brailleWidth, height = h*brailleHeight, xMin = 0.0, xMax = 0.0, yMin = 0.0, yMax = 0.0, plotType = PointPlot }
+initCanvasState :: CanvasState
+initCanvasState =
+  case initCanvas w h of
+    Right canvas ->
+      CanvasState
+        { canvas = canvas
+        , points = V.empty
+        , width = w*brailleWidth
+        , height = h*brailleHeight
+        , xMin = 0.0
+        , xMax = 0.0
+        , yMin = 0.0
+        , yMax = 0.0
+        , plotType = PointPlot
+        , yTicks = []
+        , showYTicks = False
+        }
+    Left e -> error "This never happens"
+  where
+    w = 5
+    h = 5
 
-plot :: CanvasState -> Canvas
+generateYTicks yMin yMax height =
+  let
+    tickSpacing = (yMax-yMin)/(fromIntegral height)
+    tickIndices = [0..height + 1]
+  in
+    reverse $ map (\x -> yMin + (fromIntegral x)*tickSpacing) tickIndices
+
+plot :: CanvasState -> CanvasState
 plot cs@CanvasState{..} =
   case plotType of
     PointPlot -> pointPlot cs
@@ -57,7 +85,7 @@ plot cs@CanvasState{..} =
     BarPlot -> barPlot cs
     HistogramPlot -> histogramPlot cs
 
-pointPlot :: CanvasState -> Canvas
+pointPlot :: CanvasState -> CanvasState
 pointPlot cs@CanvasState{..} =
   let
     yMin' = prettyBounds yMin
@@ -83,11 +111,11 @@ pointPlot cs@CanvasState{..} =
     canvas' = V.accum (\v (x,y) -> setBit v x y) canvas (V.toList ds)
   in
     if width > 0 && height > 0 then
-      canvas'
+      cs { canvas = canvas', yTicks = generateYTicks yMin' yMax' (height `div` brailleHeight) }
     else
-      canvas
+      cs
 
-areaPlot :: CanvasState -> Canvas
+areaPlot :: CanvasState -> CanvasState
 areaPlot cs@CanvasState{..} =
   let
     bins = width `div` brailleWidth
@@ -134,11 +162,11 @@ areaPlot cs@CanvasState{..} =
     canvas' = V.update canvas $ bs
   in
     if width > 0 && height > 0 then
-      canvas'
+      cs { canvas = canvas', yTicks = generateYTicks yMin' yMax' (height `div` brailleHeight) }
     else
-      canvas
+      cs
 
-barPlot :: CanvasState -> Canvas
+barPlot :: CanvasState -> CanvasState
 barPlot cs@CanvasState{..} =
   let
     bins = width `div` brailleWidth
@@ -184,11 +212,11 @@ barPlot cs@CanvasState{..} =
     canvas' = V.update canvas $ bs
   in
     if width > 0 && height > 0 then
-      canvas'
+      cs { canvas = canvas', yTicks = generateYTicks 0 yMax (height `div` brailleHeight) }
     else
-      canvas
+      cs
 
-histogramPlot :: CanvasState -> Canvas
+histogramPlot :: CanvasState -> CanvasState
 histogramPlot cs@CanvasState{..} =
   let
     bins = width `div` brailleWidth
@@ -227,6 +255,6 @@ histogramPlot cs@CanvasState{..} =
     canvas' = V.update canvas $ bs
   in
     if width > 0 && height > 0 then
-      canvas'
+      cs { canvas = canvas', yTicks = generateYTicks yMin' yMax' (height `div` brailleHeight) }
     else
-      canvas
+      cs

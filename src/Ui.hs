@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Ui 
   ( runUi
@@ -6,12 +7,13 @@ module Ui
 
 import Brick
 import Brick.BChan (newBChan, writeBChan)
-import Brick.Types (Size)
+import Brick.Types (Size,Location(..))
 import qualified Brick.Widgets.Border as B
 import qualified Brick.Widgets.Border.Style as Border
 import qualified Brick.Widgets.Center as C
 
 import Text.Wrap (WrapSettings(..))
+import Text.Printf (printf)
 import Lens.Micro ((^.))
 
 import qualified Graphics.Vty as Vty
@@ -25,8 +27,9 @@ import qualified Data.Vector.Unboxed as V
 import qualified Data.Sequence as Seq
 import Data.Foldable (toList)
 import Data.Time.Clock.POSIX (getPOSIXTime)
+import qualified Data.Text as T
 
-import Control.Monad (forever, void, foldM)
+import Control.Monad (forever, void, foldM, when)
 import Control.Monad.IO.Class (liftIO)
 import Control.Concurrent (threadDelay, forkIO, ThreadId, killThread)
 
@@ -60,8 +63,8 @@ untilNoneTimeout startTime acc queue = do
       Nothing -> untilNoneTimeout startTime acc queue
 
 redraw h shouldQuitAfterDone chan queue = do
-  atomically $ peekTQueue queue -- Wait for first value before jumping into forever
   forever $ do
+    atomically $ peekTQueue queue -- Wait for even one value before trying to flush the queue for drawing
     startTime <- getPOSIXTime
     ps <- untilNoneTimeout startTime Seq.empty queue
     if V.length ps > 0 then do
@@ -69,13 +72,15 @@ redraw h shouldQuitAfterDone chan queue = do
     else do
       isClosed <- IO.hIsClosed h
       noData <- atomically $ isEmptyTQueue queue
-      if shouldQuitAfterDone && noData && isClosed then do
+      when (shouldQuitAfterDone && noData && isClosed) $
         writeBChan chan Die
-      else
-        return ()
-      return ()
-    threadDelay 100000
-  return ()
+
+fileInput :: Options.Parser (Maybe String)
+fileInput = Options.optional $ Options.strOption
+  (  Options.long "file"
+  <> Options.short 'f'
+  <> Options.metavar "FILENAME"
+  <> Options.help "Input file" )
 
 fileInput :: Options.Parser (Maybe String)
 fileInput = Options.optional $ Options.strOption
@@ -106,7 +111,7 @@ handleShutdown vty tids h = do
 runUi :: IO()
 runUi = do
   chan <- newBChan 1
-  let c = initCanvasState 50 20 :: CanvasState
+  let c = initCanvasState
   let w = width c
   let h = height c
   settings <- Options.execParser settingsParserInfo
@@ -150,45 +155,91 @@ app = App { appDraw = drawUI
           , appAttrMap = const theMap
           }
 
-handleEvent :: CanvasState -> BrickEvent Name UiEvent -> EventM Name (Next CanvasState )
-handleEvent c (AppEvent (Redraw ps))                = continue $ steps c ps
-handleEvent c (AppEvent Die)                        = halt c
-handleEvent c (VtyEvent (Vty.EvKey (Vty.KChar 'a') [])) = continue $ c { plotType = AreaPlot }
-handleEvent c (VtyEvent (Vty.EvKey (Vty.KChar 'b') [])) = continue $ c { plotType = BarPlot }
-handleEvent c (VtyEvent (Vty.EvKey (Vty.KChar 'h') [])) = continue $ c { plotType = HistogramPlot }
-handleEvent c (VtyEvent (Vty.EvKey (Vty.KChar 'p') [])) = continue $ c { plotType = PointPlot }
-handleEvent c (VtyEvent (Vty.EvKey (Vty.KChar 'q') [])) = halt c
-handleEvent c (VtyEvent (Vty.EvKey Vty.KEsc []))        = halt c
-handleEvent c (VtyEvent (Vty.EvResize w h))           = continue $ resize (w-2) (h-2) c
-handleEvent c _                                     = continue c
+handleEvent :: CanvasState -> BrickEvent Name UiEvent -> EventM Name (Next CanvasState)
+handleEvent c = \case
+  AppEvent (Redraw ps)                    -> continue $ steps c ps
+  AppEvent Die                            -> halt c
+  VtyEvent (Vty.EvKey (Vty.KChar 'a') []) -> continue $ c { plotType = AreaPlot }
+  VtyEvent (Vty.EvKey (Vty.KChar 'b') []) -> continue $ c { plotType = BarPlot }
+  VtyEvent (Vty.EvKey (Vty.KChar 'h') []) -> continue $ c { plotType = HistogramPlot }
+  VtyEvent (Vty.EvKey (Vty.KChar 'p') []) -> continue $ c { plotType = PointPlot }
+  VtyEvent (Vty.EvKey (Vty.KChar 't') []) -> continue $ c { showYTicks = not (showYTicks c) }
+  VtyEvent (Vty.EvKey (Vty.KChar 'q') []) -> halt c
+  VtyEvent (Vty.EvKey Vty.KEsc [])        -> halt c
+  VtyEvent (Vty.EvResize w h)             -> continue $ resize (w-2) (h-2) c
+  _                                       -> continue c
 
 drawUI :: CanvasState -> [Widget Name]
 drawUI c =
-  [
-    hBox
-      [
-        vBox []
-      , vBox [canvasWidget c, stats c ]
-      ]
+  [ hBox [ vBox []
+         , vBox [ canvasWidget c
+                , stats c
+                ]
+         ]
   ]
 
-stats c = padLeftRight 1 (str $ "Width: " ++ (show $ width c)) <+> padLeftRight 1 (str $ "Height: " ++ (show $ height c)) <+> padLeftRight 1 (str $ "X Min: " ++ (show $ xMin c)) <+> padLeftRight 1 (str $ "X Max: " ++ (show $ xMax c)) <+> padLeftRight 1 (str $ "Y Min: " ++ (show $ yMin c)) <+> padLeftRight 1 (str $ "Y Max: " ++ (show $ yMax c))
+stats c = padLeftRight 1 (str $ "Width: " ++ (show $ width c))
+      <+> padLeftRight 1 (str $ "Height: " ++ (show $ height c))
+      <+> padLeftRight 1 (str $ "X Min: " ++ (show $ xMin c))
+      <+> padLeftRight 1 (str $ "X Max: " ++ (show $ xMax c))
+      <+> padLeftRight 1 (str $ "Y Min: " ++ (show $ yMin c))
+      <+> padLeftRight 1 (str $ "Y Max: " ++ (show $ yMax c))
 
 wrapSettings = WrapSettings { preserveIndentation = False, breakLongWords = True }
+
+addTicks ps =
+  let
+    h = head ps
+    l = last ps
+    m = drop 1 $ take (length ps - 1) ps
+  in
+    [h ++ [chr (0x2533 :: Int)]] ++ (map (\m' -> m' ++ [chr (0x252B :: Int)]) m) ++ [l ++ [chr (0x253B :: Int)]]
+
 canvasWidget :: CanvasState -> Widget n
 canvasWidget cs =
   Widget Greedy Greedy $ do
       ctx <- getContext
 
-      let width' = ctx^.availWidthL - 2
+      let width' = if showYTicks cs then
+                     ctx^.availWidthL - (2+8)
+                   else
+                     ctx^.availWidthL - 2
+
       let height' = ctx^.availHeightL - 2
-      let c = plot $ cs { canvas = initCanvas width' height', width = width'*brailleWidth, height = height'*brailleHeight }
-      
-      render $ C.center $ withBorderStyle Border.unicodeBold
-             $ B.borderWithLabel (str "Plot")
-             $ vBox (rows width' height' (V.toList $ c))
+      let cs' = case initCanvas width' height' of
+                Right canvas ->
+                  plot $ cs { canvas = canvas
+                            , width = width'*brailleWidth
+                            , height = height'*brailleHeight
+                            }
+                Left _ -> plot cs
+
+      let values = if (length $ yTicks cs') <= height' then
+                     emptyWidget
+                   else
+                     vBox
+                     $ map str
+                     $ addTicks
+                     $ map (\v -> (T.unpack . T.justifyLeft 7 ' ' . T.pack $ v))
+                     $ map (\v -> if v > 999 then printf "%.2e" v else printf "%.2f" v) (yTicks cs')
+
+      let c = canvas cs'
+
+      if showYTicks cs then
+        render $ values
+               <+> (cropLeftBy 1 $ C.center
+               $ withBorderStyle Border.unicodeBold
+               $ B.borderWithLabel (str "Plot")
+               $ (strWrapWith wrapSettings $ map chr (V.toList c)))
+      else
+        render $ C.center
+               $ withBorderStyle Border.unicodeBold
+               $ B.borderWithLabel (str "Plot")
+               $ (strWrapWith wrapSettings $ map chr (V.toList c))
+
   where
-    rows w h c    = [strWrapWith wrapSettings $ map chr c]
+    rows w h c = [strWrapWith wrapSettings $ map chr c]
 
 theMap :: AttrMap
 theMap = attrMap Vty.defAttr []
+

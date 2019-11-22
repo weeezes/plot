@@ -5,6 +5,7 @@
 module PointParser.Parser
   ( parsePoint
   , foldPoints
+  , parsedPointsToPoints
   ) where
 
 
@@ -41,8 +42,8 @@ parsePoint = do
 parsedPointToPoint :: Int -> ParsedPoint -> Point
 parsedPointToPoint _ (ParsedPoint p) = p
 parsedPointToPoint x (ParsedSingle y) = (fromIntegral $ x,y)
+parsedPointsToPoints startIndex ps = zipWith parsedPointToPoint [startIndex..] ps
 
 foldPoints queue startIndex ps = do
-  let ps' = zipWith (\i v -> parsedPointToPoint i v) [startIndex..] ps
-  atomically $ writeTQueue queue ps'
+  atomically $ writeTQueue queue $ parsedPointsToPoints startIndex ps
   return $ startIndex + (length ps)

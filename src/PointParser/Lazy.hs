@@ -20,29 +20,25 @@ import Data.Time.Clock
 
 import Control.Concurrent.STM.TQueue
 import Control.Monad.STM (STM(..), atomically)
-import Control.Monad (foldM)
+import Control.Monad (foldM, when, unless)
 
 import Types
 import PointParser.Parser
 
 loop queue h = do
   isOpen <- IO.hIsOpen h
-  if isOpen then do
+  when isOpen $ do
     available <- BS.hGetContents h
     startTime <- getPOSIXTime
     loop' queue available  0
     endTime <- getPOSIXTime
     IO.hClose h
-  else
-    return ()
 
-loop' queue availableData currentIndex = do
-  if not (BS.null availableData) then do
+loop' queue availableData currentIndex =
+  unless (BS.null availableData) $ do
     let r = AL.parse parsePoint availableData
     case r of
       AL.Fail i _ e -> print "Failed parsing"
       AL.Done leftover r -> do
         currentIndex' <- foldPoints queue currentIndex [r]
         loop' queue leftover currentIndex'
-  else
-    return ()
