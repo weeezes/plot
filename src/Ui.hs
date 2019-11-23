@@ -52,21 +52,15 @@ import CanvasState
 
 type Name = ()
 
-untilNoneTimeout startTime acc queue = do
-  currentTime <- getPOSIXTime
-  if currentTime - startTime > 1 then
-    return $ V.fromList $ toList acc
-  else do
-    v <- atomically $ tryReadTQueue queue
-    case v of
-      Just v -> untilNoneTimeout startTime (acc Seq.>< Seq.fromList v) queue
-      Nothing -> untilNoneTimeout startTime acc queue
+untilNoneTimeout queue = do
+  l <- atomically $ flushTQueue queue
+  return $ V.concat $ map V.fromList l
 
-redraw h shouldQuitAfterDone chan queue = do
+redraw h shouldQuitAfterDone chan queue =
   forever $ do
     atomically $ peekTQueue queue -- Wait for even one value before trying to flush the queue for drawing
     startTime <- getPOSIXTime
-    ps <- untilNoneTimeout startTime Seq.empty queue
+    ps <- untilNoneTimeout queue
     if V.length ps > 0 then
       writeBChan chan $ Redraw ps
     else do
