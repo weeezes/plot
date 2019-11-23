@@ -54,7 +54,7 @@ type Name = ()
 
 untilNoneTimeout startTime acc queue = do
   currentTime <- getPOSIXTime
-  if currentTime - startTime > 1 then do
+  if currentTime - startTime > 1 then
     return $ V.fromList $ toList acc
   else do
     v <- atomically $ tryReadTQueue queue
@@ -67,7 +67,7 @@ redraw h shouldQuitAfterDone chan queue = do
     atomically $ peekTQueue queue -- Wait for even one value before trying to flush the queue for drawing
     startTime <- getPOSIXTime
     ps <- untilNoneTimeout startTime Seq.empty queue
-    if V.length ps > 0 then do
+    if V.length ps > 0 then
       writeBChan chan $ Redraw ps
     else do
       isClosed <- IO.hIsClosed h
@@ -103,7 +103,7 @@ handleShutdown :: Vty.Vty -> [ThreadId] -> IO.Handle -> IO ()
 handleShutdown vty tids h = do
   putStrLn "Received SIGTERM, shutting down."
   -- TODO exit with proper error code if any of these fail
-  mapM killThread tids
+  mapM_ killThread tids
   IO.hClose h
   Vty.shutdown vty
   Process.exitImmediately Exit.ExitSuccess
@@ -142,7 +142,7 @@ runUi = do
 
       void $ customMain vty (Vty.mkVty Vty.defaultConfig) (Just chan) app c
       putStrLn "Bye!"
-      mapM killThread [loopTid, redrawTid]
+      mapM_ killThread [loopTid, redrawTid]
       IO.hClose h
     Nothing ->
       putStrLn "Given file descriptor doesn't exist"
