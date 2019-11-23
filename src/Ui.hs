@@ -52,7 +52,7 @@ import CanvasState
 
 type Name = ()
 
-untilNoneTimeout queue = do
+getPointsFromQueue queue = do
   l <- atomically $ flushTQueue queue
   return $ V.concat $ map V.fromList l
 
@@ -60,7 +60,7 @@ redraw h shouldQuitAfterDone chan queue =
   forever $ do
     atomically $ peekTQueue queue -- Wait for even one value before trying to flush the queue for drawing
     startTime <- getPOSIXTime
-    ps <- untilNoneTimeout queue
+    ps <- getPointsFromQueue queue
     if V.length ps > 0 then
       writeBChan chan $ Redraw ps
     else do
