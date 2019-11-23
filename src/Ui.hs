@@ -82,13 +82,6 @@ fileInput = Options.optional $ Options.strOption
   <> Options.metavar "FILENAME"
   <> Options.help "Input file" )
 
-fileInput :: Options.Parser (Maybe String)
-fileInput = Options.optional $ Options.strOption
-  (  Options.long "file"
-  <> Options.short 'f'
-  <> Options.metavar "FILENAME"
-  <> Options.help "Input file" )
-
 settingsParser :: Options.Parser Settings
 settingsParser = Settings
   <$> Options.switch (Options.long "quit-after-done" <> Options.short 'k' <> Options.help "Quit instantly after done reading and drawing data")
