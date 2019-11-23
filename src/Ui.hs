@@ -140,7 +140,7 @@ runUi = do
 
       Signals.installHandler Signals.sigTERM (Signals.Catch $ handleShutdown vty [loopTid, redrawTid] h) Nothing
 
-      void $ customMain (pure vty) (Just chan) app c
+      void $ customMain vty (Vty.mkVty Vty.defaultConfig) (Just chan) app c
       putStrLn "Bye!"
       mapM killThread [loopTid, redrawTid]
       IO.hClose h
